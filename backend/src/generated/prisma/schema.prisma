@@ -1,0 +1,171 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+// ===============================
+// ENUMS
+// ===============================
+
+enum InvoiceType {
+  INCOME
+  EXPENSE
+}
+
+enum PriceSource {
+  AUTO
+  MANUAL
+}
+
+enum UnitType {
+  PIECE
+  BOX
+}
+
+enum AgentInvoiceFormat {
+  STANDARD
+  BOX_IN_QTY
+  CUSTOM_4
+  // інші
+}
+
+// ===============================
+// AGENTS
+// ===============================
+// Постачальники / торгові агенти.
+// Містять лише налаштування за замовчуванням.
+// НЕ впливають на історичні накладні.
+model Agent {
+  id            Int                  @id @default(autoincrement())
+  name          String
+  markupPercent Int
+  format        AgentInvoiceFormat?
+  invoices      Invoice[]
+  products      Product[]
+  priceMemory   ProductPriceMemory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name])
+}
+
+// ===============================
+// PRODUCTS
+// ===============================
+// Каталог товарів (ДОВІДНИК).
+// Без цін, без залишків.
+// Використовується для автокомпліту і привʼязки.
+model Product {
+  id           Int                  @id @default(autoincrement())
+  name         String
+  category     String?
+  agentId      Int?
+  agent        Agent?               @relation(fields: [agentId], references: [id])
+  invoiceItems InvoiceItem[]
+  priceMemory  ProductPriceMemory[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([agentId])
+}
+
+// ===============================
+// INVOICES
+// ===============================
+// Накладна — подія.
+// Фіксує агента, тип, дату і % націнки (snapshot).
+model Invoice {
+  id            Int            @id @default(autoincrement())
+  agentId       Int
+  agent         Agent          @relation(fields: [agentId], references: [id])
+  type          InvoiceType
+  invoiceDate   DateTime
+  // SNAPSHOT націнки на момент створення
+  markupPercent Int
+  items         InvoiceItem[]
+  photos        InvoicePhoto[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([agentId])
+  @@index([invoiceDate])
+  @@index([type, invoiceDate])
+}
+
+// ===============================
+// INVOICE ITEMS
+// ===============================
+// Позиції накладної — ЄДИНЕ ДЖЕРЕЛО ПРАВДИ.
+// Тут живуть ціни, зміни і історія.
+model InvoiceItem {
+  id                   Int      @id @default(autoincrement())
+  invoiceId            Int
+  invoice              Invoice  @relation(fields: [invoiceId], references: [id])
+  productId            Int?
+  product              Product? @relation(fields: [productId], references: [id])
+  productName          String
+  unitType             UnitType
+  boxSize              Int?
+  quantity             Int // штуки (або кг як ціле, якщо не дробове)
+  boxesCount           Int? // ящики
+  purchasePrice        BigInt // копійки за одиницю (шт або ящик)
+  purchasePricePerUnit BigInt? // копійки за 1 шт
+  calculatedPrice      BigInt // копійки
+  roundedPrice         BigInt // копійки
+  priceChanged         Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model RawInvoiceItem {
+  id             Int          @id @default(autoincrement())
+  invoicePhotoId Int
+  invoicePhoto   InvoicePhoto @relation(fields: [invoicePhotoId], references: [id])
+  rowIndex       Int // порядок у накладній
+  description    String // повний текст позиції
+  rawQuantity    String? // "12", "2,25", "1 ящик", null
+  rawUnitPrice   String? // "45,72"
+  rawAmount      String? // "548,64"
+  createdAt      DateTime     @default(now())
+}
+
+// "Памʼять цін":
+// товар + агент + закупна ціна → продажна ціна.
+// Дозволяє памʼятати ручні правки.
+model ProductPriceMemory {
+  id            Int         @id @default(autoincrement())
+  productId     Int
+  product       Product     @relation(fields: [productId], references: [id])
+  agentId       Int
+  agent         Agent       @relation(fields: [agentId], references: [id])
+  purchasePrice BigInt // копійки
+  salePrice     BigInt // копійки
+  source        PriceSource
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([productId, agentId, purchasePrice])
+}
+
+// ===============================
+// INVOICE PHOTOS
+// ===============================
+// Тимчасові фото для OCR.
+// Після обробки мають видалятись.
+model InvoicePhoto {
+  id              Int              @id @default(autoincrement())
+  invoiceId       Int
+  invoice         Invoice          @relation(fields: [invoiceId], references: [id])
+  url             String
+  processed       Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  rawInvoiceItems RawInvoiceItem[]
+
+  @@index([invoiceId])
+  @@index([processed])
+}
