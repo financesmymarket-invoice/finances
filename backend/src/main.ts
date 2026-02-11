@@ -13,7 +13,6 @@ async function bootstrap() {
   app.enableCors();
   app.useGlobalInterceptors(new BigIntInterceptor());
 
-
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -22,35 +21,26 @@ async function bootstrap() {
     }),
   );
 
-  // 🔹 Лог всіх запитів
-  /*  app.use((req, res, next) => {
-    console.log('➡️ Incoming request:', req.method, req.url);
-    next();
-  }); */
-
-  // Глобальний фільтр помилок для всієї аплікації
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // Swagger конфігурація
-  const config = new DocumentBuilder()
-    .setTitle('Finaces API')
+  // Swagger
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Finances API')
     .setDescription('Description Project')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
-  const document = SwaggerModule.createDocument(app, config);
-
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api', app, document);
 
-  const port = process.env.PORT || 8080;
+  const port = parseInt(process.env.PORT, 10) || 8080;
   const host = process.env.HOST || '0.0.0.0';
-  
-  await app.listen(port, () => {
+
+  // Передаємо host як другий аргумент
+  await app.listen(port, host, () => {
     Logger.log(`🚀 Server running on http://${host}:${port}`, 'Bootstrap');
-    Logger.log(
-      `📚 Swagger documentation: http://${host}:${port}/api`,
-      'Bootstrap',
-    );
+    Logger.log(`📚 Swagger documentation: http://${host}:${port}/api`, 'Bootstrap');
   });
 }
+
 bootstrap().catch(console.error);
