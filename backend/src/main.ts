@@ -4,12 +4,15 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { config } from 'dotenv';
+import { BigIntInterceptor } from './common/filters/bigint.interceptor';
 
 config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
+  app.useGlobalInterceptors(new BigIntInterceptor());
+
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { PriceSource } from 'src/generated/prisma';
+import { PriceSource } from '@prisma/client';
 
 export class CreatePriceMemoryDto {
     @ApiProperty()

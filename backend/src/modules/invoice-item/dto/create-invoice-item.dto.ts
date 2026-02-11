@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { UnitType } from '@prisma/client';
 import { IsEnum, IsInt, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
-import { UnitType } from 'src/generated/prisma';
 
 export class CreateInvoiceItemDto {
     @ApiProperty({ example: 1 })
@@ -61,4 +61,8 @@ export class CreateInvoiceItemDto {
     @ApiProperty({ example: false, required: false })
     @IsOptional()
     priceChanged?: boolean;
+
+    @ApiProperty({ example: false, required: false })
+    @IsOptional()
+    purchasePriceChanged?: boolean;
 }

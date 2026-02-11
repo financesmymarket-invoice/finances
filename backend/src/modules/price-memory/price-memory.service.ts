@@ -19,9 +19,34 @@ export class PriceMemoryService {
         return this.prisma.productPriceMemory.findUnique({ where: { id } });
     }
 
-    update(id: number, dto: UpdatePriceMemoryDto) {
-        return this.prisma.productPriceMemory.update({ where: { id }, data: dto });
+   async update(agentId: number, productId: number, purchasePrice: number, price: number) {
+        const res = await this.prisma.productPriceMemory.findFirst({
+            where: {
+            productId
+            }
+        })
+       console.log('res', res)
+       console.log('agentId', agentId)
+       console.log('productId', productId)
+       console.log('purchasePrice', purchasePrice)
+
+       const memory = await this.prisma.productPriceMemory.update({
+            where: {
+                productId_agentId_purchasePrice: {
+                    productId,
+                    agentId,
+                    purchasePrice,
+                },
+            },
+            data: {
+                salePrice: price,
+            },
+       }); 
+       return memory;
     }
+
+
+
 
     remove(id: number) {
         return this.prisma.productPriceMemory.delete({ where: { id } });

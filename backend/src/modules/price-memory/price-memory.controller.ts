@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PriceMemoryService } from './price-memory.service';
 import { CreatePriceMemoryDto } from './dto/create-price-memory.dto';
-import { UpdatePriceMemoryDto } from './dto/update-price-memory.dto';
+import { UpdatePriceDto, UpdatePriceMemoryDto } from './dto/update-price-memory.dto';
 
 @ApiTags('price-memory')
 @Controller('price-memory')
@@ -27,11 +27,12 @@ export class PriceMemoryController {
     return this.service.findOne(Number(id));
   }
 
-  @Patch(':id')
+  @Patch()
   @ApiOperation({ summary: 'Update price memory record' })
-  update(@Param('id') id: string, @Body() dto: UpdatePriceMemoryDto) {
-    return this.service.update(Number(id), dto);
+  update(@Param('id') id: number, @Body() dto: UpdatePriceDto) {
+    return this.service.update(dto.agentId, dto.productId, dto.purchasePrice, dto.price,);
   }
+
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete price memory record' })

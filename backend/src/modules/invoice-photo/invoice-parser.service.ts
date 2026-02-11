@@ -1,7 +1,7 @@
 
 // invoice-parser.service.ts
 import { Injectable } from '@nestjs/common';
-import { AgentInvoiceFormat, UnitType } from 'src/generated/prisma';
+import { AgentInvoiceFormat, UnitType } from '@prisma/client';
 
 export interface RawOcrItem {
     productName: string;

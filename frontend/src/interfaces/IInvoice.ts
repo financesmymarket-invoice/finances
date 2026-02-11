@@ -1,10 +1,7 @@
-// Generated TypeScript interface
-// Created with DivMagic JSON to TypeScript converter
-
 interface Agent {
     id: number;
     name: string;
-    markupPercent: string;
+    markupPercent: number; // тепер number, бо зручніше для розрахунків
     createdAt: string;
     updatedAt: string;
 }
@@ -14,14 +11,20 @@ export interface Item {
     invoiceId: number;
     productId: number;
     productName: string;
-    quantity: string;
-    purchasePrice: string;
-    calculatedPrice: string;
-    roundedPrice: string;
+    quantity: number;          // number замість string
+    unitType: "PIECE" | "BOX"; // додано для нової логіки
+    boxSize?: number | null;   // додано для BOX
+    purchasePrice: number;     // number, в копійках
+    purchasePricePerUnit?: number | null; // number, в копійках
+    calculatedPrice: number;   // number, в копійках
+    roundedPrice: number;      // number, в копійках
     priceChanged: boolean;
+    purchasePriceChanged: boolean;
     createdAt: string;
     updatedAt: string;
+    boxesCount: number;
 }
+
 interface Photo {
     id: number;
     invoiceId: number;
@@ -30,16 +33,17 @@ interface Photo {
     createdAt: string;
 }
 
+export type InvoiceType =  "INCOME" | "EXPENSE"
 
 export interface IInvoice {
     id: number;
     agentId: number;
-    type: string;
+    type: InvoiceType;
     invoiceDate: string;
-    markupPercent: string;
+    markupPercent: number; // number
     createdAt: string;
     updatedAt: string;
-    items: Item;
+    items: Item[];         // масив Item
     agent: Agent;
     photos: Photo[];
 }

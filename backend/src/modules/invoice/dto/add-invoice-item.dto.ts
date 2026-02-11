@@ -1,4 +1,6 @@
+
 import { ApiProperty } from '@nestjs/swagger';
+import { UnitType } from '@prisma/client';
 
 export class AddInvoiceItemDto {
     @ApiProperty()
@@ -12,4 +14,10 @@ export class AddInvoiceItemDto {
 
     @ApiProperty({ required: false })
     salePrice?: number;
+    
+    @ApiProperty()
+    unitType: UnitType;
+
+    @ApiProperty()
+    boxSize: number;
 }

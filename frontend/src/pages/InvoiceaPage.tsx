@@ -12,8 +12,7 @@ const InvoicePage = (props: Props) => {
     console.log('id', id)
 
     return (
-        <div>
-            <h1>Invoice Page</h1>
+        <div className="flex-center" >
             {id && <Invoice id={parseInt(id)} />}
         </div>
     )

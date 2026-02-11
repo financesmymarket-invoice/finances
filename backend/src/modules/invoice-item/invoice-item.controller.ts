@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CreateInvoiceItemDto } from './dto/create-invoice-item.dto';
-import { UpdateInvoiceItemDto } from './dto/update-invoice-item.dto';
+import { UpdateInvoiceItemDto, UpdateInvoiceItemPriceDto } from './dto/update-invoice-item.dto';
 import { InvoiceItemsService } from './invoice-item.service';
 
 @ApiTags('invoice-items')
@@ -38,4 +38,13 @@ export class InvoiceItemsController {
   remove(@Param('id') id: string) {
     return this.service.remove(Number(id));
   }
+
+  @Patch(':id/price')
+  updatePrice(
+    @Param('id') id: string,
+    @Body() dto: UpdateInvoiceItemPriceDto
+  ) {
+    return this.service.updatePrice(Number(id), dto);
+  }
+
 }

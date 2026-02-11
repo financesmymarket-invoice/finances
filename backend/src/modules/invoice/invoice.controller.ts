@@ -25,7 +25,7 @@ export class InvoicesController {
   // Отримати одну накладну по ID разом з позиціями
   @Get(':id')
   @ApiOperation({ summary: 'Get invoice by ID with items' })
-  findOne(@Param('id') id: string) {
-    return this.invoiceService.findOne(Number(id));
+  async findOne(@Param('id') id: string) {
+    return await this.invoiceService.findOne(Number(id));
   }
 }

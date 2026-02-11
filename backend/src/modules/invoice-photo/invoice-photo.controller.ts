@@ -12,7 +12,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiBody, ApiTags } from '@nestjs/swagger';
 import { InvoicePhotosService } from './invoice-photo.service';
-import { InvoiceType } from 'src/generated/prisma';
+import { InvoiceType } from '@prisma/client';
 
 @ApiTags('invoice-photos')
 @Controller('invoice-photos')
@@ -48,7 +48,7 @@ export class InvoicePhotosController {
     });
   }
 
-  @Patch('items/:itemId/price')
+/*   @Patch('items/:itemId/price')
   @ApiBody({
     schema: {
       type: 'object',
@@ -66,5 +66,5 @@ export class InvoicePhotosController {
       itemId,
       newPrice
     );
-  }
+  } */
 }

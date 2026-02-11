@@ -1,18 +1,27 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, Min } from 'class-validator';
 
 export class UpdateInvoiceItemDto {
-    @ApiProperty({ required: false })
+    @ApiProperty()
     quantity?: number;
 
-    @ApiProperty({ required: false })
+    @ApiProperty()
     purchasePrice?: number;
 
-    @ApiProperty({ required: false })
+    @ApiProperty()
     calculatedPrice?: number;
 
-    @ApiProperty({ required: false })
+    @ApiProperty()
     roundedPrice?: number;
 
-    @ApiProperty({ required: false })
+    @ApiProperty()
     priceChanged?: boolean;
 }
+
+export class UpdateInvoiceItemPriceDto {
+    @ApiProperty({ description: 'Ціна за одиницю в копійках' })
+    @IsInt()
+    @Min(0)
+    calculatedPrice: number;
+}
+

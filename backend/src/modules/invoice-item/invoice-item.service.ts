@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateInvoiceItemDto } from './dto/create-invoice-item.dto';
-import { UpdateInvoiceItemDto } from './dto/update-invoice-item.dto';
+import { UpdateInvoiceItemDto, UpdateInvoiceItemPriceDto } from './dto/update-invoice-item.dto';
 
 @Injectable()
 export class InvoiceItemsService {
@@ -16,6 +16,7 @@ export class InvoiceItemsService {
                 productName: dto.productName,
                 quantity: dto.quantity,
                 purchasePrice: dto.purchasePrice,
+                unitType: dto.unitType,
                 calculatedPrice: dto.calculatedPrice ?? dto.purchasePrice,
                 roundedPrice: dto.roundedPrice ?? Math.round(dto.purchasePrice * 2) / 2,
                 priceChanged: dto.priceChanged ?? false,
@@ -52,4 +53,21 @@ export class InvoiceItemsService {
     remove(id: number) {
         return this.prisma.invoiceItem.delete({ where: { id } });
     }
+
+    async updatePrice(id: number, dto: UpdateInvoiceItemPriceDto) {
+        const item = await this.prisma.invoiceItem.findUnique({ where: { id } });
+        if (!item) throw new Error('Item not found');
+
+        const roundedPrice = dto.calculatedPrice * item.quantity; // обчислюємо на бекенді
+
+        return this.prisma.invoiceItem.update({
+            where: { id },
+            data: {
+                calculatedPrice: dto.calculatedPrice,
+                roundedPrice,
+                priceChanged: true,
+            },
+        });
+    }
+
 }
