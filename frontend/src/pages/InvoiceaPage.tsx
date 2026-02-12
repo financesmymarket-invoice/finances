@@ -3,11 +3,8 @@ import { useParams } from "react-router-dom";
 import Invoice from "../components/Invoice/Invoice";
 
 
-interface Props {
-    
-}
 
-const InvoicePage = (props: Props) => {
+const InvoicePage = () => {
     const { id } = useParams();
     console.log('id', id)
 

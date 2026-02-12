@@ -28,7 +28,7 @@ export default function App() {
         ))}
 
         {/* Приватні роути - тільки для залогінених */}
-        {privateRoutes.map(({ path, element, children }) => (
+        {privateRoutes.map(({ path, element}) => (
             <Route
               key={path}
               path={path}

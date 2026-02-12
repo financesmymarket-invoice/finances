@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useInvoiceStore } from "../../store/useInvoiceStore";
-import type { InvoiceType } from "../../interfaces/IInvoice";
+import type {  InvoiceType } from "../../interfaces/IInvoice";
 import { useNavigate } from "react-router-dom";
 
 type UploadInvoicePhotoProps = {
@@ -23,10 +23,14 @@ const UploadInvoicePhoto: React.FC<UploadInvoicePhotoProps> = ({ agentId }) => {
         // Передаємо тип як рядок "INCOME"
         const res = await uploadPhotoInvoice(selectedFile, agentId, "INCOME" as InvoiceType);
         setSelectedFile(null);
-        console.log('res', res)
-        if(res?.invoice.id)
-        navigate(`invoice/${res?.invoice.id}`)
+        console.log('res', res);
+
+        // res уже є IInvoice, тому беремо id напряму
+        if (res?.id) {
+            navigate(`invoice/${res.id}`);
+        }
     };
+
 
     return (
         <div className="upload-invoice-photo">

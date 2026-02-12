@@ -30,8 +30,8 @@ apiService.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 });
 
 /* ---------- RESPONSE ---------- */
-let isRefreshing = false;
-let queue: (() => void)[] = [];
+/* let isRefreshing = false;
+let queue: (() => void)[] = []; */
 
 apiService.interceptors.response.use(
     (res) => res,
