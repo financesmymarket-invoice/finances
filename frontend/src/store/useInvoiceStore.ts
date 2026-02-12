@@ -11,8 +11,9 @@ type InvoiceState = {
 
 type InvoiceActions = {
     getInvoiceById: (id: number) => Promise<void>;
-    changeItemSalePrice: (
+    changeItem: (
         itemId: number,
+        quantity: number,
         unitPrice: number,
         agentId: number,
         productId: number,
@@ -32,14 +33,21 @@ export const useInvoiceStore = create<InvoiceState & InvoiceActions>((set, get) 
         set({ invoice: data });
     },
 
-    changeItemSalePrice: async (itemId, unitPrice, agentId, productId, purchasePrice) => {
+    changeItem: async (
+        itemId: number,
+        unitPrice: number,
+        agentId: number,
+        productId: number,
+        purchasePrice: number,
+        quantity: number
+    ) => {
+        console.log('object', itemId, quantity, unitPrice, agentId, productId, purchasePrice);
         const invoice = get().invoice;
         if (!invoice) return;
 
         const item = invoice.items.find((i) => i.id === itemId);
         if (!item) return;
 
-        const quantity = item.quantity || 1;
         const roundedPrice = unitPrice * quantity;
 
         // Локально оновлюємо item
@@ -48,16 +56,22 @@ export const useInvoiceStore = create<InvoiceState & InvoiceActions>((set, get) 
                 ...invoice,
                 items: invoice.items.map((i) =>
                     i.id === itemId
-                        ? { ...i, calculatedPrice: unitPrice, roundedPrice, priceChanged: true }
+                        ? { ...i, calculatedPrice: unitPrice, roundedPrice, quantity, priceChanged: true }
                         : i
                 ),
             },
         });
 
-        // Оновлюємо на бекенді
-        await invoicesService.updateInvoiceItemPrice(itemId, unitPrice);
-        await invoicesService.updatePriceMemory(agentId, productId, unitPrice, purchasePrice);
+        try {
+            // Оновлюємо на бекенді
+            await invoicesService.updateInvoiceItemPrice(itemId, quantity, +unitPrice);
+            await invoicesService.updatePriceMemory(agentId, productId, +unitPrice, +purchasePrice);
+            console.log('updated memory', agentId, productId, unitPrice, +purchasePrice);
+        } catch (err) {
+            console.error("Помилка оновлення item", err);
+        }
     },
+
 
     uploadPhotoInvoice: async (file: File, agentId: number, type: InvoiceType) => {
         set({ uploading: true, uploadError: null });

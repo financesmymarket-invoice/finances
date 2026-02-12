@@ -64,7 +64,7 @@ export class InvoicePhotosService {
         if (!product) {
           product = await this.prisma.product.create({ data: { name: item.productName } });
         }
-console.log('product.name', product.name)
+        console.log('product.name', product.name)
         // закупка за одиницю
         const purchaseUnitPrice =
           item.unitType === "BOX" && item.boxSize
@@ -81,7 +81,7 @@ console.log('product.name', product.name)
             },
           },
         });
-console.log('memory', memory)
+        console.log('memory', memory)
         // продажна ціна: або беремо memory, або створюємо
         const saleUnitPrice = memory
           ? memory.salePrice

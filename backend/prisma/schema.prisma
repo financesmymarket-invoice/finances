@@ -111,7 +111,7 @@ model InvoiceItem {
   productName          String
   unitType             UnitType
   boxSize              Int?
-  quantity             Int // штуки (або кг як ціле, якщо не дробове)
+  quantity             Float // штуки (або кг як ціле, якщо не дробове)
   boxesCount           Int? // ящики
   purchasePrice        Int // копійки за одиницю (шт або ящик)
   purchasePricePerUnit Int? // копійки за 1 шт

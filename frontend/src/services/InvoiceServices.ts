@@ -12,9 +12,9 @@ const invoicesService = {
         return data;
     },
 
-    async updateInvoiceItemPrice(itemId: number, calculatedPrice: number ) {
+    async updateInvoiceItemPrice(itemId: number, quantity:number, calculatedPrice: number ) {
       
-     const res =   await apiService.patch(`invoice-items/${itemId}/price`, { calculatedPrice });
+     const res =   await apiService.patch(`invoice-items/${itemId}`, { quantity, calculatedPrice });
         return res;
     },
 
@@ -22,13 +22,13 @@ const invoicesService = {
         return apiService.patch(`price-memory/`, { agentId, productId, price, purchasePrice });
     },
 
-    uploadInvoicePhoto(file: File, agentId: number, type: InvoiceType) {
+   async uploadInvoicePhoto(file: File, agentId: number, type: InvoiceType) {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("agentId", agentId.toString());
         formData.append("type", type);
 
-        return apiService.post("invoice-photos/upload", formData, {
+        return await apiService.post("invoice-photos/upload", formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
             },

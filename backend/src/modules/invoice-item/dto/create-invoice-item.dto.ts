@@ -29,7 +29,8 @@ export class CreateInvoiceItemDto {
     @ApiProperty({ example: 5.5, description: 'Кількість в штуках (для продажу)' })
     @IsNumber()
     @IsPositive()
-    quantity: number;
+    quantity: number; // або Float у TypeORM/GraphQL, але у Nest.js/DTO достатньо number
+
 
     @ApiProperty({ example: 2, required: false, description: 'Кількість ящиків (якщо BOX)' })
     @IsOptional()

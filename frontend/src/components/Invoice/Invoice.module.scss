@@ -2,9 +2,8 @@
     display: flex;
     flex-direction: column;
     padding: 20px;
-    max-width: 1600px;
     margin: 0 auto;
-    width: 80rem;
+    width: 100%;
 }
 
 .header {
@@ -15,46 +14,51 @@
     padding: 15px;
     background: linear-gradient(to right, #f0f9ff, #e0f2fe);
     border-radius: 8px;
+    width: 100%;
 }
 
 .headerItem p {
     margin: 5px 0;
 }
 
-
-
-.tableHeader,
-.itemCard {
-    min-width: 80rem;
-}
-
 .itemsWrapper {
     display: flex;
     flex-direction: column;
     overflow-x: auto;
-    min-width: 100%;
+    overflow-y: auto;
+    width: 100%;
     padding: 0 10px;
+    position: relative;
+    align-items: flex-start;
 }
 
-/* контейнер не зменшуватиметься */
-
-.itemCard {
+.itemCard,
+.tableHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
+    min-width: 0; // ключове для стискання
+}
+
+.tableHeader{
+position: sticky;
+    top: 0;
+    transform: translateZ(0); // або translate3d(0,0,0)
+    will-change: transform;
+}
+
+.itemCard {
     background: white;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     padding: 12px 16px;
     transition: background 0.2s;
-    width: 75rem;
     align-self: center;
 
     &:hover {
         background: #f0f9ff;
     }
-
-
 
     &.rowChanged {
         background: linear-gradient(90deg, #fef3c7, #fde68a);
@@ -78,63 +82,59 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.itemCard>div:nth-child(1) {
-    width: 0.1rem;
+.itemCard>div,
+.tableHeader>div {
+    min-width: 0;
+    overflow: hidden;
+    flex: 0 0 auto; // фіксуємо ширину, не даємо рости
 }
 
+.itemCard>div:nth-child(1),
 .itemCard>div:nth-child(2) {
-    width: 0.1rem;
+    width: 35px;
+    text-align: center;
 }
 
-.itemCard>div:nth-child(3) {
-    width: 20rem;
+.itemCard>div:nth-child(3),
+.tableHeader>div:nth-child(3) {
+    width: 300px;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
-.itemCard>div:nth-child(4) {
-    width: 1rem;
-}
-
-.itemCard>div:nth-child(5) {
-    width: 1rem;
-}
-
-.itemCard>div:nth-child(6) {
-    width: 0.5rem;
-}
-
-.itemCard>div:nth-child(7) {
-    width: 0.8rem;
-}
-
-.itemCard>div:nth-child(8) {
-    width: 2.7rem;
-}
-
-.itemCard>div:nth-child(9) {
-    width: 5rem;
-}
-
-.itemCard>div:nth-child(10) {
-    width: 3rem;
-}
-
-.itemCard>div:nth-child(11) {
-    width: 3rem;
+.itemCard>div:nth-child(n+4),
+.tableHeader>div:nth-child(n+4) {
+    flex: 1 1 75px;
+    max-width: 90px;
+    text-align: center;
 }
 
 .tableHeader>div {
     padding: 14px 12px;
     text-align: center;
-    white-space: nowrap;
+    white-space: normal; // дозволь перенос у заголовках
+    overflow-wrap: break-word;
 }
-
-
 
 .productName {
     font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal !important;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+}
+
+.title {
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    text-align: center;
+}
+
+.right {
+    text-align: right;
 }
 
 .priceInput {
@@ -168,26 +168,6 @@
     }
 }
 
-.right {
-    text-align: right;
-}
-
-@keyframes blinkRed {
-
-    0%,
-    100% {
-        background-color: rgba(255, 0, 0, 0.3);
-    }
-
-    50% {
-        background-color: rgba(255, 0, 0, 0.7);
-    }
-}
-
-.blinkRed {
-    animation: blinkRed 1s infinite;
-}
-
 .footer {
     margin-top: 24px;
     padding: 16px;
@@ -200,11 +180,20 @@
     font-size: 15px;
     border-top: 2px solid #3b82f6;
     width: 100%;
-
-
-
 }
 
-.tableHeader:hover{
-background: linear-gradient(90deg, #3b82f6, #60a5fa);
+.blinkRed {
+    animation: blinkRed 1s infinite;
+}
+
+@keyframes blinkRed {
+
+    0%,
+    100% {
+        background-color: rgba(255, 0, 0, 0.3);
+    }
+
+    50% {
+        background-color: rgba(255, 0, 0, 0.7);
+    }
 }

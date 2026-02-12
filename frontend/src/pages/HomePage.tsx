@@ -26,7 +26,7 @@ const HomePage = () => {
     }, [selectedAgentId]);
 
     return (
-        <div>
+        <>
             <h1>Home Page</h1>
             <h3>Вибраний Агент: { agent?.name}</h3>
             <form onSubmit={handleSubmit}>
@@ -50,7 +50,7 @@ const HomePage = () => {
 
             <UploadInvoicePhoto agentId={+selectedAgentId} />
 
-        </div>
+        </>
     );
 };
 

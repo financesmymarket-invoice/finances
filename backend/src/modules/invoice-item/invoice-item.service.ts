@@ -40,12 +40,17 @@ export class InvoiceItemsService {
         if (dto.quantity !== undefined) data.quantity = dto.quantity;
         if (dto.purchasePrice !== undefined) data.purchasePrice = dto.purchasePrice;
         if (dto.calculatedPrice !== undefined) data.calculatedPrice = dto.calculatedPrice;
-        if (dto.roundedPrice !== undefined) data.roundedPrice = dto.roundedPrice;
+        if (dto.quantity && dto.calculatedPrice) data.roundedPrice = dto.calculatedPrice * dto.quantity;
         if (dto.priceChanged !== undefined) data.priceChanged = dto.priceChanged;
 
         return this.prisma.invoiceItem.update({
             where: { id },
-            data,
+            data: {
+                quantity: dto.quantity,
+                calculatedPrice: dto.calculatedPrice,
+                roundedPrice:data.roundedPrice,
+                priceChanged: true,
+            },
         });
     }
 

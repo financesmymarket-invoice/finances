@@ -6,7 +6,7 @@ import { mainRoutes, notFoundRoute, privateRoutes, publicRoutes } from './routes
 export default function App() {
 
   return (
-    <div>
+    <>
       <Routes>
         {/* Головна сторінка */}
         {mainRoutes.map(({ path, element }) => (
@@ -44,6 +44,6 @@ export default function App() {
           element={notFoundRoute.element}
         />
       </Routes>
-    </div>
+    </>
   );
 }

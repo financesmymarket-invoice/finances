@@ -23,13 +23,15 @@ const UploadInvoicePhoto: React.FC<UploadInvoicePhotoProps> = ({ agentId }) => {
         // Передаємо тип як рядок "INCOME"
         const res = await uploadPhotoInvoice(selectedFile, agentId, "INCOME" as InvoiceType);
         setSelectedFile(null);
-        navigate(`invoice/${res?.id}`)
+        console.log('res', res)
+        if(res?.invoice.id)
+        navigate(`invoice/${res?.invoice.id}`)
     };
 
     return (
         <div className="upload-invoice-photo">
             <input type="file" accept="image/*" onChange={handleFileChange} />
-            <button onClick={handleUpload} disabled={!selectedFile || uploading}>
+            <button onClick={handleUpload} >
                 {uploading ? "Uploading..." : "Upload Photo"}
             </button>
 
