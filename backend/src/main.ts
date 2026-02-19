@@ -6,12 +6,31 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { config } from 'dotenv';
 import { BigIntInterceptor } from './common/filters/bigint.interceptor';
 
+import * as bodyParser from 'body-parser';
+
 config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
   app.useGlobalInterceptors(new BigIntInterceptor());
+
+
+  // ✅ Збільшуємо ліміт для JSON
+  app.use(bodyParser.json({ limit: '50mb' }));
+
+  // ✅ Збільшуємо ліміт для URL-encoded
+  app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+  // Дозволити запити з GitHub Pages і з тунелю ngrok
+  app.enableCors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+    exposedHeaders: ['Content-Disposition'],
+  });
+
 
   app.useGlobalPipes(
     new ValidationPipe({

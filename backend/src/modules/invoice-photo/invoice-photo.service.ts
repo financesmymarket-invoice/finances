@@ -62,8 +62,14 @@ export class InvoicePhotosService {
         // знайти або створити продукт
         let product = await this.prisma.product.findFirst({ where: { name: item.productName } });
         if (!product) {
-          product = await this.prisma.product.create({ data: { name: item.productName } });
+          product = await this.prisma.product.create({
+            data: {
+              name: item.productName,
+              agentId: agentId, // <-- додаємо сюди
+            },
+          });
         }
+
         console.log('product.name', product.name)
         // закупка за одиницю
         const purchaseUnitPrice =

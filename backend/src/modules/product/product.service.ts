@@ -12,12 +12,25 @@ export class ProductsService {
   }
 
   findAll() {
-    return this.prisma.product.findMany();
+    return this.prisma.product.findMany({
+      include: {
+        priceMemory: true,
+        agent: true,
+      },
+});
   }
 
   findOne(id: number) {
-    return this.prisma.product.findUnique({ where: { id } });
+    return this.prisma.product.findUnique({
+      where: { id },
+      include: {
+        priceMemory: true, 
+        agent: true,
+        invoiceItems:true,
+      },
+    });
   }
+
 
   update(id: number, dto: UpdateProductDto) {
     return this.prisma.product.update({ where: { id }, data: dto });
