@@ -393,7 +393,8 @@ export class AzureOcrService {
             rows.get(cell.rowIndex)!.push(cell);
         }
 
-        for (let rowIdx = 1; rowIdx < table.rowCount; rowIdx++) {
+        // Починаємо з рядка 0 (не пропускаємо перший рядок)
+        for (let rowIdx = 0; rowIdx < table.rowCount; rowIdx++) {
             const cells = rows.get(rowIdx);
             if (!cells || cells.length < 5) continue;
 
@@ -409,9 +410,10 @@ export class AzureOcrService {
             const rawUnit = unitCell?.content?.trim() ?? '';
             const rawPrice = priceCell?.content?.trim() ?? '0';
 
-            console.log(`\n🔍 Рядок ${rowIdx}: "${rawName}"`);
+           // console.log(`\n🔍 Рядок ${rowIdx}: "${rawName}"`);
 
-            if (!rawName || /уcього|вул\.|тел\.|№/i.test(rawName)) continue;
+            // Пропускаємо заголовки та підсумкові рядки
+            if (!rawName || /уcього|вул\.|тел\.|№|товар|назва|найменування|к-ть|кількість|ціна|сума/i.test(rawName)) continue;
 
             rawName = rawName
                 .replace(/:\s*(selected|unselected)\s*:/gi, '')
@@ -419,7 +421,7 @@ export class AzureOcrService {
                 .trim();
 
             let baseQty = Number(rawQty.replace(/[^\d]/g, '')) || 0;
-            if (baseQty <= 0) continue;
+            if (baseQty <= 0) baseQty = 1; // Якщо кількість 0, ставимо 1
 
             const cleanPrice = rawPrice.replace(':', '.');
             const priceMatch = cleanPrice.match(/(\d+)[,.]?(\d{0,2})/);
