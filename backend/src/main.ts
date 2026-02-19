@@ -52,12 +52,10 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api', app, document);
 
-  const port = parseInt(process.env.PORT ?? '8080', 10);
-  const host = process.env.HOST ?? '0.0.0.0';
 
 
   // Передаємо host як другий аргумент
-await app.listen(process.env.PORT || 8080);
+  await app.listen(3000);
 
 
 }

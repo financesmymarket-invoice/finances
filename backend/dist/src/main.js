@@ -69,9 +69,7 @@ async function bootstrap() {
         .build();
     const document = swagger_1.SwaggerModule.createDocument(app, swaggerConfig);
     swagger_1.SwaggerModule.setup('api', app, document);
-    const port = parseInt(process.env.PORT ?? '8080', 10);
-    const host = process.env.HOST ?? '0.0.0.0';
-    await app.listen(process.env.PORT || 8080);
+    await app.listen(3000);
 }
 bootstrap().catch(console.error);
 //# sourceMappingURL=main.js.map
