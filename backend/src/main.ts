@@ -57,7 +57,8 @@ async function bootstrap() {
 
 
   // Передаємо host як другий аргумент
-  await await app.listen(port, '0.0.0.0');
+await app.listen(process.env.PORT || 8080);
+
 
 }
 
