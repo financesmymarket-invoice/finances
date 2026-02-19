@@ -13,7 +13,6 @@ app = "npm run start:prod"
 
 [deploy]
   release_command = 'npx prisma migrate deploy'
-  release_command = "npm run build"
 
 [http_service]
   internal_port = 8080
