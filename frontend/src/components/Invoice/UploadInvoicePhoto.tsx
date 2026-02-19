@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { useInvoiceStore } from "../../store/useInvoiceStore";
-import type {  InvoiceType } from "../../interfaces/IInvoice";
 import { useNavigate } from "react-router-dom";
+import type { InvoiceType } from "../../interfaces/InvoiceEnum";
 
 type UploadInvoicePhotoProps = {
     agentId: number;
 };
+
 
 const UploadInvoicePhoto: React.FC<UploadInvoicePhotoProps> = ({ agentId }) => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -14,28 +15,41 @@ const UploadInvoicePhoto: React.FC<UploadInvoicePhotoProps> = ({ agentId }) => {
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
-            setSelectedFile(e.target.files[0]);
+            const file = e.target.files[0];
+            console.log('Selected file:', file); // <- має показати name, size, type
+            setSelectedFile(file);
         }
     };
+
 
     const handleUpload = async () => {
-        if (!selectedFile) return;
-        // Передаємо тип як рядок "INCOME"
-        const res = await uploadPhotoInvoice(selectedFile, agentId, "INCOME" as InvoiceType);
-        setSelectedFile(null);
-        console.log('res', res);
+        if (!selectedFile || !agentId) return;
 
-        // res уже є IInvoice, тому беремо id напряму
-        if (res?.id) {
-            navigate(`invoice/${res.id}`);
+        try {
+            const res = await uploadPhotoInvoice(
+                selectedFile,
+                agentId,
+                "INCOME" as InvoiceType
+            );
+
+            console.log("Upload response:", res);
+
+            if (res && res.invoice && res.invoice.id) {
+                navigate(`/invoice/${res.invoice.id}`);
+            }
+        } catch (err) {
+            console.error("Upload failed", err);
+        } finally {
+            setSelectedFile(null);
         }
     };
+
 
 
     return (
         <div className="upload-invoice-photo">
             <input type="file" accept="image/*" onChange={handleFileChange} />
-            <button onClick={handleUpload} >
+            <button onClick={handleUpload} disabled={uploading || !selectedFile}>
                 {uploading ? "Uploading..." : "Upload Photo"}
             </button>
 

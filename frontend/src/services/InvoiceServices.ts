@@ -1,4 +1,5 @@
-import type { IInvoice, InvoiceType } from "../interfaces/IInvoice";
+import type { IInvoice } from "../interfaces/IInvoice";
+import type { InvoiceType } from "../interfaces/InvoiceEnum";
 import { apiService } from "./ApiServices";
 
 const invoicesService = {

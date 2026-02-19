@@ -20,6 +20,7 @@ apiService.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     // Accept-Language
     const lang = navigator.language.split("-")[0] || "uk"; // отримуємо "uk" або "en"
     config.headers["Accept-Language"] = lang;
+    config.headers["ngrok-skip-browser-warning"] = true;
 
     // const token = useAuthStore.getState().accessToken;
     // if (token) {

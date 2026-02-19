@@ -1,0 +1,30 @@
+.card{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    border: 1px solid rgb(227, 223, 223);
+    margin: 5px;
+}
+
+h4{
+    width: 32%;
+    border-right: 1px solid rgb(200, 194, 194);
+}
+p{
+    width: 12%;
+}
+
+@media (max-width: 680px) {
+.card{
+    flex-direction: column;
+    height: auto;
+    padding-bottom: 10px;
+    h4{
+        width: 100%;
+    }
+    p{
+        width: 100%;
+    }
+}
+}

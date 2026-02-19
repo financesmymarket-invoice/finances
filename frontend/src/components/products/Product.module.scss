@@ -1,0 +1,99 @@
+.container {
+    padding: 24px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.loading {
+    padding: 40px;
+    text-align: center;
+    font-size: 18px;
+}
+
+.title {
+    margin-bottom: 10px;
+}
+
+.card {
+    display: flex;
+    width: 100%;
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+    justify-content: space-around;
+}
+
+.row {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #f0f0f0;
+
+    &:last-child {
+        border-bottom: none;
+    }
+}
+
+.label {
+    font-weight: 600;
+    color: #666;
+}
+
+.priceBlock {
+    margin-top: 20px;
+}
+
+.table {
+    margin-top: 10px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #eee;
+}
+
+.tableHeader {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    background: #f7f7f7;
+    font-weight: 600;
+    padding: 12px;
+}
+
+.tableRow {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    padding: 12px;
+    border-top: 1px solid #eee;
+
+    &:hover {
+        background: #fafafa;
+    }
+}
+
+@media (max-width: 680px) {
+    .card{
+        display: flex;
+        width: 100%;
+        flex-direction: column;
+    }
+    .table{
+        display: flex;
+        width: 100%;
+    }
+.tableHeader{
+    display: flex;
+    flex-direction: column;
+}
+.tableRow{
+    display: flex;
+    flex-direction: column;
+}
+.row{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    span{
+        width: 100%;
+    }
+}
+}

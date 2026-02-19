@@ -1,18 +1,16 @@
-interface Agent {
-    id: number;
-    name: string;
-    markupPercent: number; // тепер number, бо зручніше для розрахунків
-    createdAt: string;
-    updatedAt: string;
-}
 
-export interface Item {
+import type { IAgent } from "./IAgent";
+import type { InvoiceType, UnitType } from "./InvoiceEnum";
+
+
+
+export interface InvoiceItem {
     id: number;
     invoiceId: number;
     productId: number;
     productName: string;
     quantity: number;          // number замість string
-    unitType: "PIECE" | "BOX"; // додано для нової логіки
+    unitType: UnitType; // додано для нової логіки
     boxSize?: number | null;   // додано для BOX
     purchasePrice: number;     // number, в копійках
     purchasePricePerUnit?: number | null; // number, в копійках
@@ -33,7 +31,6 @@ interface Photo {
     createdAt: string;
 }
 
-export type InvoiceType =  "INCOME" | "EXPENSE"
 
 export interface IInvoice {
     id: number;
@@ -43,7 +40,7 @@ export interface IInvoice {
     markupPercent: number; // number
     createdAt: string;
     updatedAt: string;
-    items: Item[];         // масив Item
-    agent: Agent;
+    items: InvoiceItem[];         // масив Item
+    agent: IAgent;
     photos: Photo[];
 }

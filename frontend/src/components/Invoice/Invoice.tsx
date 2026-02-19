@@ -1,28 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInvoiceStore } from "../../store/useInvoiceStore";
 import styles from "./Invoice.module.scss";
-
 interface Props {
     id: number;
 }
 
 const Invoice = ({ id }: Props) => {
-    const { invoice, getInvoiceById, changeItem } = useInvoiceStore();
+    const invoice = useInvoiceStore(s => s.invoice);
+    const getInvoiceById = useInvoiceStore(s => s.getInvoiceById);
+    const changeItem = useInvoiceStore(s => s.changeItem);
 
-    // Локальні стейти для редагованих полів
+
     const [editingPrices, setEditingPrices] = useState<Record<number, string>>({});
     const [editingQuantities, setEditingQuantities] = useState<Record<number, string>>({});
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        console.log('id', id)
+        if (!id) return;
         getInvoiceById(id);
-    }, [id, getInvoiceById]);
+    }, [id, invoice]);
 
+/* 
     useEffect(() => {
         if (containerRef.current && invoice) {
             containerRef.current.scrollLeft = 0;
         }
-    }, [invoice]);
+    }, [invoice]); */
+    console.log('invoice', invoice)
 
     const sortedItems = useMemo(() => {
         if (!invoice) return [];
@@ -33,8 +38,8 @@ const Invoice = ({ id }: Props) => {
         if (!invoice) return { purchase: 0, sales: 0 };
         return invoice.items.reduce(
             (acc, i) => {
-                const purchase = Number(i.purchasePricePerUnit) || 0;
-                const sales = Number(i.roundedPrice) || 0;
+                const purchase = Number(i.purchasePricePerUnit) || 0; // копійки
+                const sales = Number(i.roundedPrice) || 0; // копійки
                 acc.purchase += purchase * (i.quantity || 0);
                 acc.sales += sales;
                 return acc;
@@ -43,7 +48,6 @@ const Invoice = ({ id }: Props) => {
         );
     }, [invoice]);
 
-    // --- Універсальна зміна quantity або price ---
     const handleItemChange = (
         itemId: number,
         productId: number,
@@ -72,7 +76,6 @@ const Invoice = ({ id }: Props) => {
             setEditingQuantities(prev => ({ ...prev, [itemId]: rawValue }));
         }
 
-        // --- Виклик на сервер ---
         changeItem(itemId, newUnitPrice, invoice.agentId, productId, purchasePrice, newQuantity);
     };
 
@@ -95,79 +98,125 @@ const Invoice = ({ id }: Props) => {
 
             <div className={styles.itemsWrapper} ref={containerRef}>
                 <div className={`${styles.itemCard} ${styles.tableHeader}`}>
-                    <div className={styles.title}>#</div>
-                    <div className={styles.title}>ID</div>
-                    <div className={styles.title}>Назва товару</div>
-                    <div className={styles.title}>шт/ящ</div>
-                    <div className={styles.title}>Кількість</div>
-                    <div className={styles.title}>Ящиків</div>
-                    <div className={styles.title}>Закуп/шт</div>
-                    <div className={styles.title}>Продаж/шт</div>
-                    <div className={styles.title}>Розрах. продаж/шт</div>
-                    <div className={styles.title}>Сума закуп</div>
-                    <div className={styles.title}>Сума продаж</div>
+                    <div className={`${styles.cell} ${styles.title}`}>#</div>
+                    <div className={`${styles.cell} ${styles.title}`}>ID</div>
+                    <div className={`${styles.cell} ${styles.title}`}>Назва товару</div>
+                    <div className={`${styles.cell} ${styles.title}`}>шт/ящ</div>
+                    <div className={`${styles.cell} ${styles.title}`}>Кількість</div>
+                    <div className={`${styles.cell} ${styles.title}`}>Ящиків</div>
+                    <div className={`${styles.cell} ${styles.title}`}>Закуп/шт</div>
+                    <div className={`${styles.cell} ${styles.title}`}>Продаж/шт</div>
+                    <div className={`${styles.cell} ${styles.title}`}>Розрах. продаж/шт</div>
+                    <div className={`${styles.cell} ${styles.title}`}>Сума закуп</div>
+                    <div className={`${styles.cell} ${styles.title}`}>Сума продаж</div>
                 </div>
 
                 {sortedItems.map((item, i) => {
-                    const purchaseUAH = (Number(item.purchasePricePerUnit) || 0) / 100;
-                    const calculatedUAH = (Number(item.calculatedPrice) || 0) / 100;
-                    const roundedUAH = (Number(item.roundedPrice) || 0) / 100;
+                    // --- працюємо в копійках ---
+                    const purchaseCents = Number(item.purchasePricePerUnit) || 0;
+                    const calculatedCents = Number(item.calculatedPrice) || 0;
+                    const roundedCents = Number(item.roundedPrice) || 0;
                     const quantity = item.quantity || 0;
-                    const totalPurchaseUAH = (purchaseUAH * quantity);
 
-                    // Розрахункова продажна ціна
-                    const calculatedByMarkup = purchaseUAH * (1 + (invoice?.markupPercent ?? 0) / 100);
+                    const purchaseUAH = purchaseCents / 100;
+                    const calculatedUAH = calculatedCents / 100;
+                    const roundedUAH = roundedCents / 100;
 
-                    // Умови для підсвічування
+                    const totalPurchaseUAH = purchaseUAH * quantity;
+
+                    // 🔥 стабільний розрахунок в копійках
+                    const markupCents = Math.round(
+                        purchaseCents * (1 + (invoice?.markupPercent ?? 0) / 100)
+                    );
+
+                    const isHigher = markupCents > calculatedCents;
+
                     const rowClass = [
-                        calculatedByMarkup > calculatedUAH ? styles.blinkRed : "",
+                        isHigher ? styles.blinkRed : "",
                         editingPrices[item.id] ? styles.rowChanged : "",
                         item.purchasePriceChanged ? styles.purchaseChanged : "",
-                        
                     ].join(" ");
 
                     return (
                         <div key={item.id} className={`${styles.itemCard} ${rowClass}`}>
-                            <div className={styles.itemNumber}>{i + 1}</div>
+                            <div className={styles.cell}>{i + 1}</div>
                             <div className={styles.cell}>{item.productId}</div>
-                            <div className={`${styles.cell} ${styles.productName}`}>{item.productName}</div>
-                            <div className={styles.cell}>{item.unitType === "BOX" ? `Ящ (${item.boxSize}шт)` : "Шт"}</div>
+                            <div className={`${styles.cell} ${styles.productName}`}>
+                                {item.productName}
+                            </div>
+                            <div className={styles.cell}>
+                                {item.unitType === "BOX"
+                                    ? `Ящ (${item.boxSize}шт)`
+                                    : "Шт"}
+                            </div>
 
-                            {/* Кількість */}
                             <input
                                 type="text"
                                 inputMode="decimal"
-                                value={editingQuantities[item.id] ?? quantity.toString().replace(".", ",")}
+                                value={
+                                    editingQuantities[item.id] ??
+                                    quantity.toString().replace(".", ",")
+                                }
                                 onChange={(e) =>
-                                    setEditingQuantities(prev => ({ ...prev, [item.id]: e.target.value }))
+                                    setEditingQuantities(prev => ({
+                                        ...prev,
+                                        [item.id]: e.target.value,
+                                    }))
                                 }
                                 onBlur={(e) =>
-                                    handleItemChange(item.id, item.productId, item.purchasePricePerUnit || 0, "quantity", e.target.value)
+                                    handleItemChange(
+                                        item.id,
+                                        item.productId,
+                                        item.purchasePricePerUnit || 0,
+                                        "quantity",
+                                        e.target.value
+                                    )
                                 }
                                 className={styles.cell}
                             />
 
-                            <div className={styles.cell}>{item.boxesCount ?? "-"}</div>
+                            <div className={styles.cell}>
+                                {item.boxesCount ?? "-"}
+                            </div>
 
-                            {/* Закупівельна ціна */}
-                            <div className={`${styles.cell} ${styles.right}`}>{purchaseUAH.toFixed(2)}</div>
+                            <div className={`${styles.cell} ${styles.right} ${item.purchasePriceChanged ? styles.purchaseChanged : ""}`}>
+                                {purchaseUAH.toFixed(2)}
+                            </div>
 
-                            {/* Продажна ціна */}
                             <input
                                 type="text"
                                 inputMode="decimal"
-                                value={editingPrices[item.id] ?? calculatedUAH.toFixed(2)}
+                                value={
+                                    editingPrices[item.id] ??
+                                    calculatedUAH.toFixed(2)
+                                }
                                 onChange={(e) =>
-                                    setEditingPrices(prev => ({ ...prev, [item.id]: e.target.value }))
+                                    setEditingPrices(prev => ({
+                                        ...prev,
+                                        [item.id]: e.target.value,
+                                    }))
                                 }
                                 onBlur={(e) =>
-                                    handleItemChange(item.id, item.productId, item.purchasePricePerUnit || 0, "price", e.target.value)
+                                    handleItemChange(
+                                        item.id,
+                                        item.productId,
+                                        item.purchasePricePerUnit || 0,
+                                        "price",
+                                        e.target.value
+                                    )
                                 }
-                                className={`${styles.cell} ${item.priceChanged ? styles.rowChanged : ""} ${calculatedByMarkup > roundedUAH ? styles.blinkRed : ""}`}
+                                className={`${styles.cell} ${item.priceChanged ? styles.rowChanged : ""
+                                    } ${isHigher ? styles.blinkRed : ""}`}
                             />
 
-                            <div className={`${styles.cell} ${styles.right}`}>{calculatedByMarkup.toFixed(2)}</div>
-                            <div className={`${styles.cell} ${styles.right}`}>{totalPurchaseUAH.toFixed(2)}</div>
+                            <div className={`${styles.cell} ${styles.right}`}>
+                                {(markupCents / 100).toFixed(2)}
+                            </div>
+
+                            <div className={`${styles.cell} ${styles.right}`}>
+                                {totalPurchaseUAH.toFixed(2)}
+                            </div>
+
                             <div className={`${styles.cell} ${styles.right}`}>
                                 <strong>{roundedUAH.toFixed(2)}</strong>
                             </div>
@@ -177,14 +226,23 @@ const Invoice = ({ id }: Props) => {
             </div>
 
             <div className={styles.footer}>
-                <div>Відсоток: {totals.purchase ? ((totals.sales / totals.purchase) * 100).toFixed(0) : 0}%</div>
+                <div>
+                    Відсоток:{" "}
+                    {totals.purchase
+                        ? ((totals.sales / totals.purchase) * 100).toFixed(0)
+                        : 0}
+                    %
+                </div>
                 <div>РАЗОМ:</div>
-                <div className={styles.right}><strong>{(totals.purchase/100).toFixed(2)}</strong></div>
-                <div className={styles.right}><strong>{(totals.sales/100).toFixed(2)}</strong></div>
+                <div className={styles.right}>
+                    <strong>{(totals.purchase / 100).toFixed(2)}</strong>
+                </div>
+                <div className={styles.right}>
+                    <strong>{(totals.sales / 100).toFixed(2)}</strong>
+                </div>
             </div>
         </div>
     );
 };
 
 export default Invoice;
-

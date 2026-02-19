@@ -1,0 +1,80 @@
+// ProductsPage.module.scss
+.container {
+    padding: 20px;
+}
+
+.filters {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+
+    .info {
+        color: #666;
+        font-size: 14px;
+    }
+}
+
+.virtualList {
+    height: calc(100vh - 200px); // ✅ Важливо: фіксована висота для скролу
+    overflow: auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
+.productBox{
+    display: flex;
+    background-color: rgb(242, 251, 251);
+
+    &:nth-child(even) {
+            background-color: #f2eeee; // колір для кожного другого
+        }
+
+button {
+        padding: 0.15rem 0.35rem;
+        border-radius: 0.75rem;
+        color: #0d0d0d;
+        background: linear-gradient(90deg, #ff416c, #ff4b2b);
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(70, 64, 63, 0.8);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        margin: 3px;
+
+        &:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(255, 75, 43, 0.5);
+            background: linear-gradient(90deg, #ff4b2b, #ff416c);
+        }
+
+        &:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(255, 65, 108, 0.4);
+        }
+
+        &:active {
+            transform: scale(0.98);
+            box-shadow: 0 3px 10px rgba(255, 75, 43, 0.5);
+        }
+    }
+}
+
+@media (max-width: 680px) {
+.productBox{
+    flex-direction: column;
+    margin-bottom: 25px;
+   
+    button {
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+}
+
+}

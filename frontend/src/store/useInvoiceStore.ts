@@ -1,10 +1,17 @@
 import { create } from "zustand";
-import type { IInvoice, InvoiceType } from "../interfaces/IInvoice";
+import type { IInvoice } from "../interfaces/IInvoice";
 import { invoicesService } from "../services/InvoiceServices";
+import type { InvoiceType } from "../interfaces/InvoiceEnum";
+
+type UploadPhotoResponse = {
+    invoice: IInvoice;
+    items?: any[];
+    photo?: any;
+};
 
 type InvoiceState = {
     invoice: IInvoice | null;
-    uploadedPhotoUrl: string | null; // зберігаємо URL завантаженого фото
+    uploadedPhotoUrl: string | null;
     uploading: boolean;
     uploadError: string | null;
 };
@@ -13,13 +20,17 @@ type InvoiceActions = {
     getInvoiceById: (id: number) => Promise<void>;
     changeItem: (
         itemId: number,
-        quantity: number,
         unitPrice: number,
         agentId: number,
         productId: number,
-        purchasePrice: number
+        purchasePrice: number,
+        quantity: number
     ) => Promise<void>;
-    uploadPhotoInvoice: (file: File, agentId: number, type: InvoiceType) => Promise<IInvoice | undefined>;
+    uploadPhotoInvoice: (
+        file: File,
+        agentId: number,
+        type: InvoiceType
+    ) => Promise<UploadPhotoResponse | undefined>;
 };
 
 export const useInvoiceStore = create<InvoiceState & InvoiceActions>((set, get) => ({
@@ -29,57 +40,84 @@ export const useInvoiceStore = create<InvoiceState & InvoiceActions>((set, get) 
     uploadError: null,
 
     getInvoiceById: async (id) => {
-        const data = await invoicesService.getInvoiceById(id);
-        set({ invoice: data });
+        const invoice = await invoicesService.getInvoiceById(id);
+
+        set({
+            invoice: {
+                ...invoice,
+                items: invoice.items ?? [],
+            },
+        });
     },
 
-    changeItem: async (
-        itemId: number,
-        unitPrice: number,
-        agentId: number,
-        productId: number,
-        purchasePrice: number,
-        quantity: number
-    ) => {
-        console.log('object', itemId, quantity, unitPrice, agentId, productId, purchasePrice);
-        const invoice = get().invoice;
-        if (!invoice) return;
 
-        const item = invoice.items.find((i) => i.id === itemId);
-        if (!item) return;
+    changeItem: async (
+        itemId,
+        unitPrice,
+        agentId,
+        productId,
+        purchasePrice,
+        quantity
+    ) => {
+        const invoice = get().invoice;
+        if (!invoice || !invoice.items) return;
 
         const roundedPrice = unitPrice * quantity;
 
-        // Локально оновлюємо item
         set({
             invoice: {
                 ...invoice,
                 items: invoice.items.map((i) =>
                     i.id === itemId
-                        ? { ...i, calculatedPrice: unitPrice, roundedPrice, quantity, priceChanged: true }
+                        ? {
+                            ...i,
+                            calculatedPrice: unitPrice,
+                            roundedPrice,
+                            quantity,
+                            priceChanged: true,
+                        }
                         : i
                 ),
             },
         });
 
         try {
-            // Оновлюємо на бекенді
-            await invoicesService.updateInvoiceItemPrice(itemId, quantity, +unitPrice);
-            await invoicesService.updatePriceMemory(agentId, productId, +unitPrice, +purchasePrice);
-            console.log('updated memory', agentId, productId, unitPrice, +purchasePrice);
+            await invoicesService.updateInvoiceItemPrice(
+                itemId,
+                quantity,
+                +unitPrice
+            );
+            await invoicesService.updatePriceMemory(
+                agentId,
+                productId,
+                +unitPrice,
+                +purchasePrice
+            );
         } catch (err) {
             console.error("Помилка оновлення item", err);
         }
     },
 
-
-    uploadPhotoInvoice: async (file: File, agentId: number, type: InvoiceType) => {
+    uploadPhotoInvoice: async (file, agentId, type) => {
         set({ uploading: true, uploadError: null });
+
         try {
-            const response = await invoicesService.uploadInvoicePhoto(file, agentId, type);
-            const updatedInvoice: IInvoice = response.data; // повертається сам IInvoice
-            set({ invoice: updatedInvoice });
-            return updatedInvoice;
+            const response = await invoicesService.uploadInvoicePhoto(
+                file,
+                agentId,
+                type
+            );
+
+            const { invoice, items } = response.data;
+
+            set({
+                invoice: {
+                    ...invoice,
+                    items: items ?? [],
+                },
+            });
+
+            return response.data;
         } catch (err: any) {
             set({ uploadError: err.message || "Failed to upload photo" });
             return undefined;
@@ -89,5 +127,3 @@ export const useInvoiceStore = create<InvoiceState & InvoiceActions>((set, get) 
     },
 
 }));
-
-

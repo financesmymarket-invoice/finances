@@ -1,6 +1,8 @@
+import Product from "../components/products/Product";
 import HomePage from "../pages/HomePage";
 import InvoicePage from "../pages/InvoiceaPage";
 import NotFoundPage from "../pages/NotFoundPage";
+import ProductsPage from "../pages/ProductsPage";
 
 
 
@@ -8,8 +10,8 @@ import NotFoundPage from "../pages/NotFoundPage";
 export const publicRoutes = [
     { path: "/", element: <HomePage /> },
     { path: "/invoice/:id", element: <InvoicePage /> },
-
-
+    { path: "/products", element: <ProductsPage /> },
+    { path: "/product/:id", element: <Product /> },
 ];
 
 export const mainRoutes = [

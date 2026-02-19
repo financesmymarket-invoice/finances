@@ -16,8 +16,6 @@ const HomePage = () => {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("Selected agent id:", selectedAgentId);
-        // Тут можна робити що завгодно з вибраним агентом
     };
 
     useEffect(() => {
