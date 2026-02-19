@@ -1,93 +1,117 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useProductStore } from "../store/useProductStore";
 import { useAgentStore } from "../store/useAgentStore";
 import ProductCart from "../components/products/ProductCart";
 import styles from "./ProductsPage.module.scss";
 
+const ITEMS_PER_PAGE = 15;
+
 const ProductsPage = () => {
     const { products, getProducts, deleteProduct } = useProductStore();
     const { agents, getAgents } = useAgentStore();
+
     const [selectedAgent, setSelectedAgent] = useState<number | "all">("all");
-    const [displayCount, setDisplayCount] = useState(15);
-    const ITEMS_PER_PAGE = 15;
+    const [search, setSearch] = useState("");
+    const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
 
     const listRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
         getProducts();
         getAgents();
-    }, [getProducts, getAgents, deleteProduct]);
+    }, [getProducts, getAgents]);
+
+    const normalizedSearch = search.trim().toLowerCase();
 
     const filteredProducts = useMemo(() => {
-        if (selectedAgent === "all") return products;
-        return products.filter(p => p.agentId === selectedAgent);
-    }, [products, selectedAgent]);
+        return products.filter((p) => {
+            const matchesAgent =
+                selectedAgent === "all" || p.agentId === selectedAgent;
 
-  
+            const matchesSearch =
+                !normalizedSearch ||
+                p.name.toLowerCase().includes(normalizedSearch);
+
+            return matchesAgent && matchesSearch;
+        });
+    }, [products, selectedAgent, normalizedSearch]);
+
     const displayedProducts = useMemo(() => {
         return filteredProducts.slice(0, displayCount);
     }, [filteredProducts, displayCount]);
 
-    const hasMore = displayedProducts.length < filteredProducts.length;
+    const hasMore = displayCount < filteredProducts.length;
 
-    // ✅ Простий обробник скролу
-    const handleScroll = () => {
+    const handleScroll = useCallback(() => {
         if (!listRef.current || !hasMore) return;
 
         const { scrollTop, scrollHeight, clientHeight } = listRef.current;
         const scrolledPercentage = (scrollTop + clientHeight) / scrollHeight;
 
-        // Якщо проскролили більше 80%
         if (scrolledPercentage > 0.8) {
-            console.log('📦 Завантажуємо ще', ITEMS_PER_PAGE, 'елементів');
-            setDisplayCount(prev => prev + ITEMS_PER_PAGE);
+            setDisplayCount((prev) => prev + ITEMS_PER_PAGE);
         }
-    };
+    }, [hasMore]);
 
-    // ✅ Підписка на скрол
     useEffect(() => {
         const element = listRef.current;
         if (!element) return;
 
-        element.addEventListener('scroll', handleScroll, { passive: true });
-        return () => element.removeEventListener('scroll', handleScroll);
-    }, [hasMore]); // ✅ Залежність тільки від hasMore
+        element.addEventListener("scroll", handleScroll, { passive: true });
+        return () => element.removeEventListener("scroll", handleScroll);
+    }, [handleScroll]);
 
-    // ✅ Скидання при зміні фільтра
     useEffect(() => {
-        setDisplayCount(15);
+        setDisplayCount(ITEMS_PER_PAGE);
         listRef.current?.scrollTo(0, 0);
-    }, [selectedAgent]);
+    }, [selectedAgent, normalizedSearch]);
 
     return (
         <div className={styles.container}>
-            <h1 className={styles.title}>Продукти ({products.length})</h1>
+            <h1 className={styles.title}>
+                Продукти ({filteredProducts.length})
+            </h1>
 
             <div className={styles.filters}>
                 <label>Фільтр по агенту:</label>
+
                 <select
                     value={selectedAgent}
                     onChange={(e) =>
                         setSelectedAgent(
-                            e.target.value === "all" ? "all" : Number(e.target.value)
+                            e.target.value === "all"
+                                ? "all"
+                                : Number(e.target.value)
                         )
                     }
                 >
                     <option value="all">Всі</option>
-                    {agents.map(agent => (
+                    {agents.map((agent) => (
                         <option key={agent.id} value={agent.id}>
                             {agent.name}
                         </option>
                     ))}
                 </select>
 
+                <input
+                    type="text"
+                    placeholder="Пошук по назві..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className={styles.searchInput}
+                />
+
                 <span className={styles.info}>
-                    Показано {displayedProducts.length} з {filteredProducts.length}
+                    Показано {displayedProducts.length} з{" "}
+                    {filteredProducts.length}
                 </span>
 
-                {/* Кнопка для ручного завантаження */}
                 {hasMore && (
-                    <button onClick={() => setDisplayCount(prev => prev + ITEMS_PER_PAGE)}>
+                    <button
+                        onClick={() =>
+                            setDisplayCount((prev) => prev + ITEMS_PER_PAGE)
+                        }
+                    >
                         Завантажити ще
                     </button>
                 )}
@@ -95,10 +119,11 @@ const ProductsPage = () => {
 
             <div ref={listRef} className={styles.productList}>
                 {displayedProducts.map((product) => (
-                    <div className={styles.productBox}>
-                        <ProductCart key={product.id} product={product} />
-                        <button onClick={() => deleteProduct(product.id)}> Видалити </button>
-
+                    <div key={product.id} className={styles.productBox}>
+                        <ProductCart product={product} />
+                        <button onClick={() => deleteProduct(product.id)}>
+                            Видалити
+                        </button>
                     </div>
                 ))}
 
@@ -110,13 +135,13 @@ const ProductsPage = () => {
 
                 {!hasMore && displayedProducts.length > 0 && (
                     <div className={styles.loading}>
-                        ✅ Всі продукти завантажено
+                        Всі продукти завантажено
                     </div>
                 )}
 
-                {displayedProducts.length === 0 && filteredProducts.length === 0 && (
+                {filteredProducts.length === 0 && (
                     <div className={styles.empty}>
-                        Немає продуктів для цього агента
+                        Немає продуктів за заданими параметрами
                     </div>
                 )}
             </div>

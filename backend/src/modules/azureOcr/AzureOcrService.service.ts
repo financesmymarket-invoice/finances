@@ -375,6 +375,7 @@ export class AzureOcrService {
 
 
     /**Агент 4 Лімо */
+    /**Агент 4 Лімо */
     private parseForAgent4(result: AnalyzeResult): ParsedInvoiceItemInternal[] {
         console.log(`\n📊 [AGENT 4] Парсинг таблиці`);
 
@@ -386,6 +387,7 @@ export class AzureOcrService {
         }
 
         const table = result.tables[0];
+        console.log(`📋 Знайдено таблицю: ${table.rowCount} рядків, ${table.columnCount} колонок`);
 
         const rows = new Map<number, any[]>();
         for (const cell of table.cells) {
@@ -393,99 +395,151 @@ export class AzureOcrService {
             rows.get(cell.rowIndex)!.push(cell);
         }
 
-        // Починаємо з рядка 0 (не пропускаємо перший рядок)
-        for (let rowIdx = 0; rowIdx < table.rowCount; rowIdx++) {
+        // Починаємо з рядка 1 (пропускаємо заголовок)
+        for (let rowIdx = 1; rowIdx < table.rowCount; rowIdx++) {
             const cells = rows.get(rowIdx);
-            if (!cells || cells.length < 5) continue;
+            if (!cells) continue;
 
             cells.sort((a, b) => a.columnIndex - b.columnIndex);
 
-            const nameCell = cells.find(c => c.columnIndex === 2);
-            const qtyCell = cells.find(c => c.columnIndex === 3);
-            const unitCell = cells.find(c => c.columnIndex === 4);
-            const priceCell = cells.find(c => c.columnIndex === 5);
+            // Структура таблиці:
+            // col 1: Товар (назва)
+            // col 2: К-сть
+            // col 3: Одиниця (шт/ящ)
+            // col 4: Ціна
+            const nameCell = cells.find(c => c.columnIndex === 1);
+            const qtyCell = cells.find(c => c.columnIndex === 2);
+            const unitCell = cells.find(c => c.columnIndex === 3);
+            const priceCell = cells.find(c => c.columnIndex === 4);
 
             let rawName = nameCell?.content?.trim() ?? '';
             const rawQty = qtyCell?.content?.trim() ?? '0';
             const rawUnit = unitCell?.content?.trim() ?? '';
             const rawPrice = priceCell?.content?.trim() ?? '0';
 
-           // console.log(`\n🔍 Рядок ${rowIdx}: "${rawName}"`);
+            console.log(`\n🔍 Рядок ${rowIdx}:`);
+            console.log(`  📝 Назва: "${rawName}"`);
+            console.log(`  🔢 Кількість: "${rawQty}"`);
+            console.log(`  📦 Одиниця: "${rawUnit}"`);
+            console.log(`  💰 Ціна: "${rawPrice}"`);
 
-            // Пропускаємо заголовки та підсумкові рядки
-            if (!rawName || /уcього|вул\.|тел\.|№|товар|назва|найменування|к-ть|кількість|ціна|сума/i.test(rawName)) continue;
+            // Пропускаємо порожні рядки
+            if (!rawName || rawName.length < 3) {
+                console.log(`  ⏭️ Пропуск: порожня назва`);
+                continue;
+            }
 
+            // Очищення назви
             rawName = rawName
-                .replace(/:\s*(selected|unselected)\s*:/gi, '')
+                .replace(/:\s*(selected|unselected)\s*:?/gi, '')
                 .replace(/\n/g, ' ')
+                .replace(/\s+/g, ' ')
                 .trim();
 
-            let baseQty = Number(rawQty.replace(/[^\d]/g, '')) || 0;
-            if (baseQty <= 0) baseQty = 1; // Якщо кількість 0, ставимо 1
+            // Парсинг кількості з таблиці
+            const tableQty = Number(rawQty.replace(/[^\d]/g, '')) || 0;
+            if (tableQty <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова кількість`);
+                continue;
+            }
 
-            const cleanPrice = rawPrice.replace(':', '.');
-            const priceMatch = cleanPrice.match(/(\d+)[,.]?(\d{0,2})/);
-            const priceUAH = priceMatch
-                ? parseFloat(`${priceMatch[1]}.${priceMatch[2] || '00'}`)
-                : 0;
+            // Парсинг ціни
+            const cleanPrice = rawPrice.replace(/\s+/g, '').replace(/,/g, '.');
+            const priceMatch = cleanPrice.match(/(\d+(?:\.\d{1,2})?)/);
+            const priceUAH = priceMatch ? parseFloat(priceMatch[1]) : 0;
 
-            if (priceUAH <= 0) continue;
+            if (priceUAH <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова ціна`);
+                continue;
+            }
 
-            let finalQty = baseQty;
-            let unitType: 'PIECE' | 'BOX' = 'PIECE';
+            // Визначення типу упаковки
+            const isBox = /ящ|яш/i.test(rawUnit);
+            const unitType: 'PIECE' | 'BOX' = isBox ? 'BOX' : 'PIECE';
+
             let boxSize: number | undefined = undefined;
+            let finalQuantity: number;
             let purchasePriceCents: number;
 
-            const isBox = /ящ/i.test(rawUnit);
-
             if (isBox) {
-                unitType = 'BOX';
+                // 📦 ЯЩИК: ціна в таблиці = ціна за ЯЩИК
+                console.log(`  📦 Тип: ЯЩИК`);
 
-                let boxSizeMatch = rawName.match(/(\d+)\s*шт[\s\/]*ящ/i);
+                // Шукаємо розмір ящика в назві
+                const boxSizeMatch = rawName.match(/(\d+)\s*шт[\s\/]*ящ/i);
 
                 if (boxSizeMatch) {
                     boxSize = parseInt(boxSizeMatch[1], 10);
+                    console.log(`  ✓ Розмір ящика: ${boxSize} шт`);
                 } else {
-                    const weightMatch = rawName.match(/(\d+(?:[,.]\d+)?)\s*(кг|г|л|мл)/i);
+                    // Якщо не знайдено, шукаємо вагу
+                    const weightMatch = rawName.match(/(\d+(?:[,.]\d+)?)\s*кг/i);
 
                     if (weightMatch) {
-                        const value = parseFloat(weightMatch[1].replace(',', '.'));
-                        const unit = weightMatch[2].toLowerCase();
+                        const kgValue = parseFloat(weightMatch[1].replace(',', '.'));
 
-                        if (unit === 'кг' || unit === 'л') {
-                            boxSize = Math.round(value);
-                        } else if (unit === 'г' || unit === 'мл') {
-                            boxSize = Math.round(value / 1000);
+                        if (/пельмен|хінкал|млинц/i.test(rawName)) {
+                            boxSize = Math.round(kgValue);
+                        } else {
+                            const pieceWeightMatch = rawName.match(/(\d+)\s*г/i);
+                            if (pieceWeightMatch) {
+                                const gramsPerPiece = parseInt(pieceWeightMatch[1]);
+                                boxSize = Math.round((kgValue * 1000) / gramsPerPiece);
+                            } else {
+                                boxSize = 20;
+                            }
                         }
-
-                        if (!boxSize || boxSize <= 0) boxSize = 1;
+                        console.log(`  ✓ Розмір з ваги: ${boxSize} шт`);
                     }
                 }
 
-                if (!boxSize || boxSize <= 0) boxSize = 30;
+                if (!boxSize || boxSize <= 0) {
+                    boxSize = 20;
+                    console.log(`  ⚠️ Default: ${boxSize} шт`);
+                }
 
-                finalQty = baseQty * boxSize;
+                // Кількість штук = к-сть ящиків × розмір ящика
+                finalQuantity = tableQty * boxSize;
+                // Ціна зберігаємо ЯК Є (за ящик)
                 purchasePriceCents = Math.round(priceUAH * 100);
+
+                console.log(`  📊 Розрахунок:`);
+                console.log(`     К-сть ящиків: ${tableQty}`);
+                console.log(`     Розмір ящика: ${boxSize} шт`);
+                console.log(`     Всього штук: ${finalQuantity}`);
+                console.log(`     Ціна за ящик: ${priceUAH} грн (${purchasePriceCents} коп)`);
+
             } else {
-                finalQty = baseQty;
+                // 📦 ШТУКИ: ціна в таблиці = ціна за ШТУКУ
+                console.log(`  📦 Тип: ШТУКИ`);
+
+                finalQuantity = tableQty;
                 purchasePriceCents = Math.round(priceUAH * 100);
+
+                console.log(`  📊 Розрахунок:`);
+                console.log(`     Кількість: ${finalQuantity} шт`);
+                console.log(`     Ціна за штуку: ${priceUAH} грн (${purchasePriceCents} коп)`);
             }
 
-            // ❗ БІЛЬШЕ НЕ ВИДАЛЯЄМО ЛІТРАЖ / ВАГУ
-            rawName = rawName
+            // Очищаємо назву від технічної інформації
+            const cleanName = rawName
                 .replace(/,?\s*\d+\s*шт[\s\/]*ящ/gi, '')
                 .replace(/\s*ящ\.?\s*$/gi, '')
                 .trim();
 
-            items.push({
-                productName: rawName,
-                quantity: finalQty,
-                purchasePrice: purchasePriceCents,
+            const item: ParsedInvoiceItemInternal = {
+                productName: cleanName,
+                quantity: finalQuantity,  // загальна кількість ШТУК
+                purchasePrice: purchasePriceCents,  // ціна ЯК Є (за ящик або штуку)
                 unitType,
                 boxSize: unitType === 'BOX' ? boxSize : undefined,
-            });
+            };
+
+            console.log(`  ✅ ДОДАНО:`, item);
+            items.push(item);
         }
 
+        console.log(`\n✅ Всього розпізнано позицій: ${items.length}`);
         return items;
     }
 

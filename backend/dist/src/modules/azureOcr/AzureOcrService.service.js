@@ -57,7 +57,6 @@ let AzureOcrService = class AzureOcrService {
         this.client = new ai_form_recognizer_1.DocumentAnalysisClient(endpoint, new ai_form_recognizer_1.AzureKeyCredential(apiKey));
     }
     async extractInvoiceItems(filePath, agentId) {
-        console.log(`[OCR] Початок для agentId=${agentId}, файл: ${filePath}`);
         const buffer = fs.readFileSync(filePath);
         if (agentId) {
             const poller = await this.client.beginAnalyzeDocument('prebuilt-layout', buffer);
@@ -168,37 +167,29 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent1(result) {
-        console.log(`\n📊 [AGENT 1] Парсинг накладної Молокія`);
         const items = [];
         if (!result.tables?.length) {
             console.error('❌ Таблиці не знайдено');
             return items;
         }
         const table = result.tables[0];
-        console.log(`📋 Таблиця має ${table.rowCount} рядків і ${table.columnCount} колонок`);
         const rows = new Map();
         for (const cell of table.cells) {
             if (!rows.has(cell.rowIndex))
                 rows.set(cell.rowIndex, []);
             rows.get(cell.rowIndex).push(cell);
         }
-        console.log(`\n📊 Всього рядків у таблиці: ${table.rowCount}`);
-        console.log(`📊 Рядків у Map: ${rows.size}`);
+     
         for (let rowIdx = 0; rowIdx < table.rowCount; rowIdx++) {
             const cells = rows.get(rowIdx);
-            console.log(`\n═══════════════════════════════════════`);
-            console.log(`🔍 [ROW ${rowIdx}] Кількість комірок: ${cells?.length || 0}`);
             if (!cells) {
-                console.log(`⚠️ [ROW ${rowIdx}] Рядок відсутній у Map`);
                 continue;
             }
             cells.sort((a, b) => a.columnIndex - b.columnIndex);
-            console.log(`📋 Всі комірки в рядку ${rowIdx}:`);
             cells.forEach(cell => {
                 console.log(`  [col ${cell.columnIndex}]: "${cell.content?.trim().substring(0, 50)}..."`);
             });
             if (rowIdx === 0) {
-                console.log(`⚠️ [SKIP] Це заголовок`);
                 continue;
             }
             const rawName = cells.find(c => c.columnIndex === 2)?.content?.trim() || '';
@@ -222,7 +213,6 @@ let AzureOcrService = class AzureOcrService {
                 continue;
             }
             const purchasePrice = Math.round(priceUAH * 100);
-            console.log(`✅ ДОДАЄМО: "${productName}" × ${quantity} шт @ ${purchasePrice}коп`);
             items.push({
                 productName,
                 quantity,
@@ -230,10 +220,9 @@ let AzureOcrService = class AzureOcrService {
                 unitType: 'PIECE',
             });
         }
-        console.log(`\n═══════════════════════════════════════`);
-        console.log(`✅ Агент 1: витягнуто ${items.length} позицій з ${table.rowCount} рядків`);
+    
         items.forEach((item, idx) => {
-            console.log(`  ${idx + 1}. ${item.productName} - ${item.quantity} шт`);
+           
         });
         return items;
     }
@@ -294,7 +283,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent3(result) {
-        console.log(`\n📊 [AGENT 3] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -334,7 +322,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent4(result) {
-        console.log(`\n📊 [AGENT 4] Парсинг таблиці`);
         const items = [];
         if (!result.tables?.length) {
             console.error('❌ Таблиці не знайдено');
@@ -347,93 +334,98 @@ let AzureOcrService = class AzureOcrService {
                 rows.set(cell.rowIndex, []);
             rows.get(cell.rowIndex).push(cell);
         }
-        for (let rowIdx = 0; rowIdx < table.rowCount; rowIdx++) {
+        for (let rowIdx = 1; rowIdx < table.rowCount; rowIdx++) {
             const cells = rows.get(rowIdx);
-            if (!cells || cells.length < 5)
+            if (!cells)
                 continue;
             cells.sort((a, b) => a.columnIndex - b.columnIndex);
-            const nameCell = cells.find(c => c.columnIndex === 2);
-            const qtyCell = cells.find(c => c.columnIndex === 3);
-            const unitCell = cells.find(c => c.columnIndex === 4);
-            const priceCell = cells.find(c => c.columnIndex === 5);
+            const nameCell = cells.find(c => c.columnIndex === 1);
+            const qtyCell = cells.find(c => c.columnIndex === 2);
+            const unitCell = cells.find(c => c.columnIndex === 3);
+            const priceCell = cells.find(c => c.columnIndex === 4);
             let rawName = nameCell?.content?.trim() ?? '';
             const rawQty = qtyCell?.content?.trim() ?? '0';
             const rawUnit = unitCell?.content?.trim() ?? '';
             const rawPrice = priceCell?.content?.trim() ?? '0';
-            if (!rawName || /уcього|вул\.|тел\.|№|товар|назва|найменування|к-ть|кількість|ціна|сума/i.test(rawName))
+            if (!rawName || rawName.length < 3) {
                 continue;
+            }
             rawName = rawName
-                .replace(/:\s*(selected|unselected)\s*:/gi, '')
+                .replace(/:\s*(selected|unselected)\s*:?/gi, '')
                 .replace(/\n/g, ' ')
+                .replace(/\s+/g, ' ')
                 .trim();
-            let baseQty = Number(rawQty.replace(/[^\d]/g, '')) || 0;
-            if (baseQty <= 0)
-                baseQty = 1;
-            const cleanPrice = rawPrice.replace(':', '.');
-            const priceMatch = cleanPrice.match(/(\d+)[,.]?(\d{0,2})/);
-            const priceUAH = priceMatch
-                ? parseFloat(`${priceMatch[1]}.${priceMatch[2] || '00'}`)
-                : 0;
-            if (priceUAH <= 0)
+            const tableQty = Number(rawQty.replace(/[^\d]/g, '')) || 0;
+            if (tableQty <= 0) {
                 continue;
-            let finalQty = baseQty;
-            let unitType = 'PIECE';
+            }
+            const cleanPrice = rawPrice.replace(/\s+/g, '').replace(/,/g, '.');
+            const priceMatch = cleanPrice.match(/(\d+(?:\.\d{1,2})?)/);
+            const priceUAH = priceMatch ? parseFloat(priceMatch[1]) : 0;
+            if (priceUAH <= 0) {
+                continue;
+            }
+            const isBox = /ящ|яш/i.test(rawUnit);
+            const unitType = isBox ? 'BOX' : 'PIECE';
             let boxSize = undefined;
+            let finalQuantity;
             let purchasePriceCents;
-            const isBox = /ящ/i.test(rawUnit);
             if (isBox) {
-                unitType = 'BOX';
-                let boxSizeMatch = rawName.match(/(\d+)\s*шт[\s\/]*ящ/i);
+                const boxSizeMatch = rawName.match(/(\d+)\s*шт[\s\/]*ящ/i);
                 if (boxSizeMatch) {
                     boxSize = parseInt(boxSizeMatch[1], 10);
                 }
                 else {
-                    const weightMatch = rawName.match(/(\d+(?:[,.]\d+)?)\s*(кг|г|л|мл)/i);
+                    const weightMatch = rawName.match(/(\d+(?:[,.]\d+)?)\s*кг/i);
                     if (weightMatch) {
-                        const value = parseFloat(weightMatch[1].replace(',', '.'));
-                        const unit = weightMatch[2].toLowerCase();
-                        if (unit === 'кг' || unit === 'л') {
-                            boxSize = Math.round(value);
+                        const kgValue = parseFloat(weightMatch[1].replace(',', '.'));
+                        if (/пельмен|хінкал|млинц/i.test(rawName)) {
+                            boxSize = Math.round(kgValue);
                         }
-                        else if (unit === 'г' || unit === 'мл') {
-                            boxSize = Math.round(value / 1000);
+                        else {
+                            const pieceWeightMatch = rawName.match(/(\d+)\s*г/i);
+                            if (pieceWeightMatch) {
+                                const gramsPerPiece = parseInt(pieceWeightMatch[1]);
+                                boxSize = Math.round((kgValue * 1000) / gramsPerPiece);
+                            }
+                            else {
+                                boxSize = 20;
+                            }
                         }
-                        if (!boxSize || boxSize <= 0)
-                            boxSize = 1;
                     }
                 }
-                if (!boxSize || boxSize <= 0)
-                    boxSize = 30;
-                finalQty = baseQty * boxSize;
+                if (!boxSize || boxSize <= 0) {
+                    boxSize = 20;
+                }
+                finalQuantity = tableQty * boxSize;
                 purchasePriceCents = Math.round(priceUAH * 100);
             }
             else {
-                finalQty = baseQty;
+                finalQuantity = tableQty;
                 purchasePriceCents = Math.round(priceUAH * 100);
             }
-            rawName = rawName
+            const cleanName = rawName
                 .replace(/,?\s*\d+\s*шт[\s\/]*ящ/gi, '')
                 .replace(/\s*ящ\.?\s*$/gi, '')
                 .trim();
-            items.push({
-                productName: rawName,
-                quantity: finalQty,
+            const item = {
+                productName: cleanName,
+                quantity: finalQuantity,
                 purchasePrice: purchasePriceCents,
                 unitType,
                 boxSize: unitType === 'BOX' ? boxSize : undefined,
-            });
+            };
+            items.push(item);
         }
         return items;
     }
     parseForAgent5(result) {
-        console.log(`\n📊 [AGENT 5] Парсинг таблиці Шувара`);
         const items = [];
         if (!result.tables?.length) {
             console.error('❌ Таблиці не знайдено');
             return items;
         }
         const table = result.tables[0];
-        console.log(`📋 Таблиця має ${table.rowCount} рядків і ${table.columnCount} колонок`);
         const rows = new Map();
         for (const cell of table.cells) {
             if (!rows.has(cell.rowIndex))
@@ -443,7 +435,6 @@ let AzureOcrService = class AzureOcrService {
         for (let rowIdx = 1; rowIdx < table.rowCount; rowIdx++) {
             const cells = rows.get(rowIdx);
             if (!cells || cells.length < 4) {
-                console.log(`⚠️ [ROW ${rowIdx}] Пропущено - недостатньо комірок (${cells?.length || 0})`);
                 continue;
             }
             cells.sort((a, b) => a.columnIndex - b.columnIndex);
@@ -476,10 +467,8 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent6(result) {
-        console.log(`\n📊 [AGENT 6] Парсинг таблиці`);
         const items = [];
         if (!result.tables?.length) {
-            console.error('❌ Таблиці не знайдено');
             return items;
         }
         const table = result.tables[0];
@@ -534,7 +523,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent7(result) {
-        console.log(`\n📊 [AGENT 7] Парсинг Biscotti (ящики + вага з назви)`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -577,7 +565,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent10(result) {
-        console.log(`\n📊 [AGENT 10] Парсинг накладної Джерельна`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -614,7 +601,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent11(result) {
-        console.log(`\n📊 [AGENT 11] Парсинг накладної Галичина`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -652,12 +638,10 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent12(result) {
-        console.log(`\n📊 [AGENT 12] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
         const table = result.tables[0];
-        console.log(`\n🔍 [DEBUG] Таблиця має ${table.rowCount} рядків і ${table.columnCount} стовпців`);
         const rows = new Map();
         for (const cell of table.cells) {
             if (!rows.has(cell.rowIndex))
@@ -667,9 +651,7 @@ let AzureOcrService = class AzureOcrService {
         rows.forEach((cells, rowIdx) => {
             cells.sort((a, b) => a.columnIndex - b.columnIndex);
             if (rowIdx <= 2) {
-                console.log(`\n🔍 [DEBUG] Рядок ${rowIdx}:`);
                 cells.forEach(cell => {
-                    console.log(`  col ${cell.columnIndex}: "${cell.content}"`);
                 });
             }
             const firstCell = cells.find(c => c.columnIndex === 0);
@@ -684,7 +666,6 @@ let AzureOcrService = class AzureOcrService {
                 return;
             }
             let rawName = nameCell.content.replace(/\n/g, ' ').trim();
-            console.log(`\n✅ [DEBUG] Рядок ${rowIdx}: name="${rawName}", qty="${qtyCell.content}", price="${priceCell.content}"`);
             const quantity = parseFloat(qtyCell.content.replace(',', '.')) || 0;
             const rawPrice = priceCell.content.replace(',', '.').replace(/[^\d.]/g, '');
             const priceUAH = parseFloat(rawPrice) || 0;
@@ -697,11 +678,9 @@ let AzureOcrService = class AzureOcrService {
                 });
             }
         });
-        console.log(`\n📦 [DEBUG] Всього оброблено товарів: ${items.length}`);
         return items;
     }
     parseForAgent14(result) {
-        console.log(`\n📊 [AGENT 14] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -737,7 +716,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent15(result) {
-        console.log(`\n📊 [AGENT 15] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -770,11 +748,9 @@ let AzureOcrService = class AzureOcrService {
                 });
             }
         });
-        console.log('items', items);
         return items;
     }
     parseForAgent17(result) {
-        console.log(`\n📊 [AGENT 17] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -812,14 +788,11 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent18(result) {
-        console.log(`\n📊 [AGENT 18] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length) {
-            console.error('❌ Таблиці не знайдено');
             return items;
         }
         const table = result.tables[0];
-        console.log(`\n🔍 [DEBUG] Таблиця має ${table.rowCount} рядків і ${table.columnCount} стовпців`);
         const rows = new Map();
         for (const cell of table.cells) {
             if (!rows.has(cell.rowIndex))
@@ -829,9 +802,7 @@ let AzureOcrService = class AzureOcrService {
         rows.forEach((cells, rowIdx) => {
             cells.sort((a, b) => a.columnIndex - b.columnIndex);
             if (rowIdx <= 5) {
-                console.log(`\n🔍 [DEBUG] Рядок ${rowIdx}:`);
                 cells.forEach(cell => {
-                    console.log(`  col ${cell.columnIndex}: "${cell.content}"`);
                 });
             }
             const nameCell = cells.find(c => c.columnIndex === 1);
@@ -863,11 +834,9 @@ let AzureOcrService = class AzureOcrService {
                 });
             }
         });
-        console.log(`\n📦 [DEBUG] Всього оброблено товарів: ${items.length}`);
         return items;
     }
     parseForAgent21(result) {
-        console.log(`\n📊 [AGENT 21] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -907,7 +876,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent22(result) {
-        console.log(`\n📊 [AGENT 22] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -945,7 +913,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent23(result) {
-        console.log(`\n📊 [AGENT 23] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -985,7 +952,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent24(result) {
-        console.log(`\n📊 [AGENT 24] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -1025,7 +991,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent25(result) {
-        console.log(`\n📊 [AGENT 25] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -1063,7 +1028,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent28(result) {
-        console.log(`\n📊 [AGENT 27] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -1106,7 +1070,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent30(result) {
-        console.log(`\n📊 [AGENT 30] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -1144,7 +1107,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent31(result) {
-        console.log(`\n📊 [AGENT 30] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -1182,7 +1144,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent33(result) {
-        console.log(`\n📊 [AGENT 33] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
@@ -1222,7 +1183,6 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent34(result) {
-        console.log(`\n📊 [AGENT 34] Парсинг накладної`);
         const items = [];
         if (!result.tables?.length)
             return items;
