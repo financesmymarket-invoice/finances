@@ -36,6 +36,7 @@ let InvoicesService = class InvoicesService {
                 if (!product) {
                     product = await tx.product.create({ data: { name: item.productName } });
                 }
+                console.log('product.name', product.name);
                 const purchaseUnitPrice = item.unitType === "BOX" && item.boxSize
                     ? Math.round(item.purchasePrice / item.boxSize)
                     : item.purchasePrice;
@@ -48,6 +49,7 @@ let InvoicesService = class InvoicesService {
                         },
                     },
                 });
+                console.log('memory', memory);
                 const saleUnitPrice = memory
                     ? memory.salePrice
                     : Math.round(purchaseUnitPrice * (1 + agent.markupPercent / 100));

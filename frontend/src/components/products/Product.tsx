@@ -13,7 +13,6 @@ const Product = () => {
     }, [id, getProductById]);
 
     if (!product) return <div className={styles.loading}>Завантаження...</div>;
-    console.log('product', product)
 
     return (
         <div className={styles.container}>
@@ -48,7 +47,7 @@ const Product = () => {
 
                         {product.priceMemory.map((p) => (
                             <div key={p.id} className={styles.tableRow}>
-                                <div>{p.agent?.name}</div>
+                                <div>{product.agent?.name ?? "25" }</div>
                                 <div>{(p.purchasePrice / 100).toFixed(2)}</div>
                                 <div>{(p.salePrice / 100).toFixed(2)}</div>
                                 <div>{p.source}</div>
