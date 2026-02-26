@@ -27,7 +27,7 @@ const Product = () => {
                
 
                 <div className={styles.row}>
-                    <span className={styles.label}>Агент:</span>
+                    <span className={styles.label}>Агент-</span>
                     <span>{product.agent?.name ?? "-"}</span>
                 </div>
             </div>

@@ -100,7 +100,7 @@ let AzureOcrService = class AzureOcrService {
                 return this.parseForAgent24(result);
             if (agentId === 25)
                 return this.parseForAgent25(result);
-            if (agentId === 28)
+            if (agentId === 28 || agentId === 35)
                 return this.parseForAgent28(result);
             if (agentId === 30)
                 return this.parseForAgent30(result);
@@ -110,6 +110,12 @@ let AzureOcrService = class AzureOcrService {
                 return this.parseForAgent33(result);
             if (agentId === 34)
                 return this.parseForAgent34(result);
+            if (agentId === 36)
+                return this.parseForAgent36(result);
+            if (agentId === 37)
+                return this.parseForAgent37(result);
+            if (agentId === 38)
+                return this.parseForAgent38(result);
         }
         const poller = await this.client.beginAnalyzeDocument('prebuilt-invoice', buffer);
         const result = await poller.pollUntilDone();
@@ -238,59 +244,89 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent2(result) {
+        console.log(`\n📊 [AGENT 2] Парсинг таблиці`);
         const items = [];
-        if (!result.tables?.length)
+        if (!result.tables?.length) {
+            console.error('❌ Таблиці не знайдено');
             return items;
+        }
         const table = result.tables[0];
+        console.log(`📋 Знайдено таблицю: ${table.rowCount} рядків, ${table.columnCount} колонок`);
         const rows = new Map();
         for (const cell of table.cells) {
             if (!rows.has(cell.rowIndex))
                 rows.set(cell.rowIndex, []);
             rows.get(cell.rowIndex).push(cell);
         }
-        rows.forEach((cells, rowIdx) => {
-            if (rowIdx === 0)
-                return;
+        for (let rowIdx = 1; rowIdx < table.rowCount; rowIdx++) {
+            const cells = rows.get(rowIdx);
+            if (!cells)
+                continue;
             cells.sort((a, b) => a.columnIndex - b.columnIndex);
-            const nameCell = cells.find(c => c.columnIndex === 1);
-            if (!nameCell || nameCell.content.length < 5)
-                return;
-            let rawQty = "";
-            let rawPrice = "";
-            let rawUnit = "";
-            cells.forEach(cell => {
-                const content = cell.content.trim();
-                if (/^\d+([,. ]\d+)?$/.test(content)) {
-                    if (cell.columnIndex === 2)
-                        rawQty = content;
-                    if (cell.columnIndex >= 4 && cell.columnIndex <= 6)
-                        rawPrice = content;
-                }
-                if (/шт|пл|ящ/i.test(content)) {
-                    rawUnit = content;
-                }
+            console.log(`\n🔍 Рядок ${rowIdx} (${cells.length} клітинок):`);
+            cells.forEach((cell, idx) => {
+                console.log(`  [${idx}] col=${cell.columnIndex}: "${cell.content?.trim()}"`);
             });
-            if (!rawPrice) {
-                const numericCells = cells.filter(c => /[\d,.]+/.test(c.content));
-                if (numericCells.length >= 2) {
-                    rawPrice = numericCells[numericCells.length - 2].content;
+            const nameCell = cells.find(c => c.columnIndex === 1);
+            const qtyCell = cells.find(c => c.columnIndex === 2);
+            const unitCell = cells.find(c => c.columnIndex === 3);
+            const priceCell = cells.find(c => c.columnIndex === 4);
+            let rawName = nameCell?.content?.trim() ?? '';
+            const rawQty = qtyCell?.content?.trim() ?? '0';
+            const rawUnit = unitCell?.content?.trim() ?? '';
+            const rawPrice = priceCell?.content?.trim() ?? '0';
+            console.log(`  📝 Назва: "${rawName}"`);
+            console.log(`  🔢 Кількість: "${rawQty}"`);
+            console.log(`  📦 Одиниця: "${rawUnit}"`);
+            console.log(`  💰 Ціна: "${rawPrice}"`);
+            if (!rawName || rawName.length < 5) {
+                console.log(`  ⏭️ Пропуск: порожня/коротка назва`);
+                continue;
+            }
+            rawName = rawName
+                .replace(/:\s*(selected|unselected)\s*:?/gi, '')
+                .replace(/ФІЗИЧНА ОСОБА|ПІДПРИЄМЕЦЬ|ГОРИНСЬКИЙ|ДЛЯ ДОКУМЕНТІВ|Ігор Іванович/gi, '')
+                .replace(/\n+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (/^(№|n|назва|товар|к-?ть|кількість|од\.|одиниця|ціна)/i.test(rawName)) {
+                console.log(`  ⏭️ Пропуск: заголовок`);
+                continue;
+            }
+            const quantity = Number(rawQty.replace(/[^\d]/g, '')) || 0;
+            if (quantity <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова кількість`);
+                continue;
+            }
+            const cleanPrice = rawPrice.replace(/\s+/g, '').replace(/,/g, '.');
+            const priceMatch = cleanPrice.match(/(\d+(?:\.\d{1,2})?)/);
+            const priceUAH = priceMatch ? parseFloat(priceMatch[1]) : 0;
+            if (priceUAH <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова ціна`);
+                continue;
+            }
+            const purchasePriceCents = Math.round(priceUAH * 100);
+            const isBox = /ящ|яш/i.test(rawUnit);
+            const unitType = isBox ? 'BOX' : 'PIECE';
+            let boxSize = undefined;
+            if (isBox) {
+                const boxSizeMatch = rawName.match(/(\d+)\s*(шт|пл|пляш)/i);
+                if (boxSizeMatch) {
+                    boxSize = parseInt(boxSizeMatch[1], 10);
+                    console.log(`  ✓ Розмір ящика: ${boxSize} шт`);
                 }
             }
-            let cleanName = nameCell.content
-                .replace(/ФІЗИЧНА ОСОБА|ПІДПРИЄМЕЦЬ|ГОРИНСЬКИЙ|ДЛЯ ДОКУМЕНТІВ|Ігор Іванович/gi, '')
-                .replace(/\n/g, ' ')
-                .trim();
-            const priceUAH = parseFloat(rawPrice.replace(',', '.')) || 0;
-            const qty = parseFloat(rawQty.replace(',', '.')) || 0;
-            if (cleanName.length > 5 && priceUAH > 0) {
-                items.push({
-                    productName: cleanName,
-                    quantity: qty || 1,
-                    purchasePrice: Math.round(priceUAH * 100),
-                    unitType: /ящ/i.test(rawUnit) ? 'BOX' : 'PIECE',
-                });
-            }
-        });
+            const item = {
+                productName: rawName,
+                quantity: quantity,
+                purchasePrice: purchasePriceCents,
+                unitType,
+                boxSize: unitType === 'BOX' ? boxSize : undefined,
+            };
+            console.log(`  ✅ ДОДАНО:`, item);
+            items.push(item);
+        }
+        console.log(`\n✅ Всього розпізнано позицій: ${items.length}`);
         return items;
     }
     parseForAgent3(result) {
@@ -768,40 +804,73 @@ let AzureOcrService = class AzureOcrService {
         return items;
     }
     parseForAgent15(result) {
-        console.log(`\n📊 [AGENT 15] Парсинг накладної`);
+        console.log(`\n📊 [AGENT 15] Парсинг таблиці`);
         const items = [];
-        if (!result.tables?.length)
+        if (!result.tables?.length) {
+            console.error('❌ Таблиці не знайдено');
             return items;
+        }
         const table = result.tables[0];
+        console.log(`📋 Знайдено таблицю: ${table.rowCount} рядків, ${table.columnCount} колонок`);
         const rows = new Map();
         for (const cell of table.cells) {
             if (!rows.has(cell.rowIndex))
                 rows.set(cell.rowIndex, []);
             rows.get(cell.rowIndex).push(cell);
         }
-        rows.forEach((cells, rowIdx) => {
+        for (let rowIdx = 1; rowIdx < table.rowCount; rowIdx++) {
+            const cells = rows.get(rowIdx);
+            if (!cells)
+                continue;
             cells.sort((a, b) => a.columnIndex - b.columnIndex);
-            const nameCell = cells.find(c => c.columnIndex === 1);
-            const qtyCell = cells.find(c => c.columnIndex === 3);
-            const priceCell = cells.find(c => c.columnIndex === 4);
-            if (!nameCell || !qtyCell || !priceCell)
-                return;
-            let rawName = nameCell.content.replace(/\n/g, ' ').trim();
-            if (/номенклатура|штрихкод|найменування/i.test(rawName))
-                return;
-            const quantity = parseFloat(qtyCell.content.replace(',', '.')) || 0;
-            const rawPrice = priceCell.content.replace(',', '.').replace(/[^\d.]/g, '');
-            const priceUAH = parseFloat(rawPrice) || 0;
-            if (rawName && quantity > 0 && priceUAH > 0) {
-                items.push({
-                    productName: rawName,
-                    quantity: quantity,
-                    purchasePrice: Math.round(priceUAH * 100),
-                    unitType: 'PIECE'
-                });
+            console.log(`\n🔍 Рядок ${rowIdx} (${cells.length} клітинок):`);
+            cells.forEach((cell, idx) => {
+                console.log(`  [${idx}] col=${cell.columnIndex}: "${cell.content?.trim()}"`);
+            });
+            const nameCell = cells.find(c => c.columnIndex === 2);
+            const qtyCell = cells.find(c => c.columnIndex === 4);
+            const priceCell = cells.find(c => c.columnIndex === 5);
+            let rawName = nameCell?.content?.trim() ?? '';
+            const rawQty = qtyCell?.content?.trim() ?? '0';
+            const rawPrice = priceCell?.content?.trim() ?? '0';
+            console.log(`  📝 Назва: "${rawName}"`);
+            console.log(`  🔢 Кількість: "${rawQty}"`);
+            console.log(`  💰 Ціна: "${rawPrice}"`);
+            if (!rawName || rawName.length < 5) {
+                console.log(`  ⏭️ Пропуск: порожня/коротка назва`);
+                continue;
             }
-        });
-        console.log('items', items);
+            if (/номенклатура|штрихкод|найменування|к-?ть|ціна/i.test(rawName)) {
+                console.log(`  ⏭️ Пропуск: заголовок`);
+                continue;
+            }
+            rawName = rawName
+                .replace(/\n+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            const quantity = parseFloat(rawQty.replace(/,/g, '.')) || 0;
+            if (quantity <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова кількість`);
+                continue;
+            }
+            const cleanPrice = rawPrice.replace(/\s+/g, '').replace(/,/g, '.');
+            const priceMatch = cleanPrice.match(/(\d+(?:\.\d{1,2})?)/);
+            const priceUAH = priceMatch ? parseFloat(priceMatch[1]) : 0;
+            if (priceUAH <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова ціна`);
+                continue;
+            }
+            const purchasePriceCents = Math.round(priceUAH * 100);
+            const item = {
+                productName: rawName,
+                quantity: quantity,
+                purchasePrice: purchasePriceCents,
+                unitType: 'PIECE',
+            };
+            console.log(`  ✅ ДОДАНО:`, item);
+            items.push(item);
+        }
+        console.log(`\n✅ Всього розпізнано позицій: ${items.length}`);
         return items;
     }
     parseForAgent17(result) {
@@ -1288,6 +1357,250 @@ let AzureOcrService = class AzureOcrService {
                 });
             }
         });
+        return items;
+    }
+    parseForAgent36(result) {
+        console.log(`\n📊 [AGENT 36] Парсинг таблиці`);
+        const items = [];
+        if (!result.tables?.length) {
+            console.error('❌ Таблиці не знайдено');
+            return items;
+        }
+        const table = result.tables[0];
+        console.log(`📋 Знайдено таблицю: ${table.rowCount} рядків, ${table.columnCount} колонок`);
+        const rows = new Map();
+        for (const cell of table.cells) {
+            if (!rows.has(cell.rowIndex))
+                rows.set(cell.rowIndex, []);
+            rows.get(cell.rowIndex).push(cell);
+        }
+        for (let rowIdx = 1; rowIdx < table.rowCount; rowIdx++) {
+            const cells = rows.get(rowIdx);
+            if (!cells)
+                continue;
+            cells.sort((a, b) => a.columnIndex - b.columnIndex);
+            console.log(`\n🔍 Рядок ${rowIdx} (${cells.length} клітинок):`);
+            cells.forEach((cell, idx) => {
+                console.log(`  [${idx}] col=${cell.columnIndex}: "${cell.content?.trim()}"`);
+            });
+            const nameCell = cells.find(c => c.columnIndex === 0);
+            const qtyCell1 = cells.find(c => c.columnIndex === 1);
+            const qtyCell2 = cells.find(c => c.columnIndex === 2);
+            const priceCell = cells.find(c => c.columnIndex === 3);
+            let rawName = nameCell?.content?.trim() ?? '';
+            const rawQty1 = qtyCell1?.content?.trim() ?? '';
+            const rawQty2 = qtyCell2?.content?.trim() ?? '';
+            const rawPrice = priceCell?.content?.trim() ?? '0';
+            console.log(`  📝 Назва: "${rawName}"`);
+            console.log(`  🔢 К-ть упак: "${rawQty1}"`);
+            console.log(`  🔢 К-ть один: "${rawQty2}"`);
+            console.log(`  💰 Ціна: "${rawPrice}"`);
+            if (!rawName || rawName.length < 5) {
+                console.log(`  ⏭️ Пропуск: порожня/коротка назва`);
+                continue;
+            }
+            rawName = rawName
+                .replace(/\n+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (/^(назва|товар|к-?ть|ціна|варт)/i.test(rawName)) {
+                console.log(`  ⏭️ Пропуск: заголовок`);
+                continue;
+            }
+            let quantity = 0;
+            if (rawQty2) {
+                quantity = parseFloat(rawQty2.replace(/,/g, '.').replace(/[^\d.]/g, '')) || 0;
+                console.log(`  ✓ Кількість з col 2: ${quantity}`);
+            }
+            if (quantity <= 0 && rawQty1) {
+                quantity = parseFloat(rawQty1.replace(/,/g, '.').replace(/[^\d.]/g, '')) || 0;
+                console.log(`  ✓ Кількість з col 1: ${quantity}`);
+            }
+            if (quantity <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова кількість`);
+                continue;
+            }
+            const cleanPrice = rawPrice.replace(/\s+/g, '').replace(/,/g, '.');
+            const priceMatch = cleanPrice.match(/(\d+(?:\.\d{1,3})?)/);
+            const priceUAH = priceMatch ? parseFloat(priceMatch[1]) : 0;
+            if (priceUAH <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова ціна`);
+                continue;
+            }
+            const purchasePriceCents = Math.round(priceUAH * 100);
+            const item = {
+                productName: rawName,
+                quantity: quantity,
+                purchasePrice: purchasePriceCents,
+                unitType: 'PIECE',
+            };
+            console.log(`  ✅ ДОДАНО:`, item);
+            items.push(item);
+        }
+        console.log(`\n✅ Всього розпізнано позицій: ${items.length}`);
+        return items;
+    }
+    parseForAgent37(result) {
+        console.log(`\n📊 [AGENT 37] Парсинг таблиці`);
+        const items = [];
+        if (!result.tables?.length) {
+            console.error('❌ Таблиці не знайдено');
+            return items;
+        }
+        const table = result.tables[0];
+        console.log(`📋 Знайдено таблицю: ${table.rowCount} рядків, ${table.columnCount} колонок`);
+        const rows = new Map();
+        for (const cell of table.cells) {
+            if (!rows.has(cell.rowIndex))
+                rows.set(cell.rowIndex, []);
+            rows.get(cell.rowIndex).push(cell);
+        }
+        for (let rowIdx = 1; rowIdx < table.rowCount; rowIdx++) {
+            const cells = rows.get(rowIdx);
+            if (!cells)
+                continue;
+            cells.sort((a, b) => a.columnIndex - b.columnIndex);
+            console.log(`\n🔍 Рядок ${rowIdx} (${cells.length} клітинок):`);
+            cells.forEach((cell, idx) => {
+                console.log(`  [${idx}] col=${cell.columnIndex}: "${cell.content?.trim()}"`);
+            });
+            const nameCell = cells.find(c => c.columnIndex === 2);
+            const qtyCell = cells.find(c => c.columnIndex === 3);
+            const unitCell = cells.find(c => c.columnIndex === 4);
+            const priceCell = cells.find(c => c.columnIndex === 5);
+            const sumCell = cells.find(c => c.columnIndex === 6);
+            let rawName = nameCell?.content?.trim() ?? '';
+            const rawQty = qtyCell?.content?.trim() ?? '0';
+            const rawUnit = unitCell?.content?.trim() ?? '';
+            const rawPrice = priceCell?.content?.trim() ?? '0';
+            const rawSum = sumCell?.content?.trim() ?? '0';
+            console.log(`  📝 Назва: "${rawName}"`);
+            console.log(`  🔢 Кількість: "${rawQty}"`);
+            console.log(`  📦 Одиниця: "${rawUnit}"`);
+            console.log(`  💰 Ціна: "${rawPrice}"`);
+            console.log(`  💵 Сума: "${rawSum}"`);
+            if (!rawName || rawName.length < 5) {
+                console.log(`  ⏭️ Пропуск: порожня/коротка назва`);
+                continue;
+            }
+            rawName = rawName
+                .replace(/\n+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (/^(товар|тара|назва|к-?ть|кількість|ціна|сума)/i.test(rawName)) {
+                console.log(`  ⏭️ Пропуск: заголовок`);
+                continue;
+            }
+            if (/разом|всього|итого/i.test(rawName)) {
+                console.log(`  ⏭️ Пропуск: підсумковий рядок`);
+                continue;
+            }
+            let quantity = parseFloat(rawQty.replace(/,/g, '.').replace(/[^\d.]/g, '')) || 0;
+            if (quantity <= 0 || quantity < 0.1) {
+                const cleanPrice = rawPrice.replace(/\s+/g, '').replace(/,/g, '.');
+                const priceMatch = cleanPrice.match(/(\d+(?:\.\d{1,2})?)/);
+                const priceUAH = priceMatch ? parseFloat(priceMatch[1]) : 0;
+                const cleanSum = rawSum.replace(/\s+/g, '').replace(/,/g, '.');
+                const sumMatch = cleanSum.match(/(\d+(?:\.\d{1,2})?)/);
+                const sumUAH = sumMatch ? parseFloat(sumMatch[1]) : 0;
+                if (priceUAH > 0 && sumUAH > 0) {
+                    quantity = Math.round(sumUAH / priceUAH);
+                    console.log(`  🔧 Розрахована кількість: ${sumUAH} / ${priceUAH} = ${quantity}`);
+                }
+            }
+            if (quantity <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова кількість`);
+                continue;
+            }
+            const cleanPrice = rawPrice.replace(/\s+/g, '').replace(/,/g, '.');
+            const priceMatch = cleanPrice.match(/(\d+(?:\.\d{1,2})?)/);
+            const priceUAH = priceMatch ? parseFloat(priceMatch[1]) : 0;
+            if (priceUAH <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова ціна`);
+                continue;
+            }
+            const purchasePriceCents = Math.round(priceUAH * 100);
+            const item = {
+                productName: rawName,
+                quantity: quantity,
+                purchasePrice: purchasePriceCents,
+                unitType: 'PIECE',
+            };
+            console.log(`  ✅ ДОДАНО:`, item);
+            items.push(item);
+        }
+        console.log(`\n✅ Всього розпізнано позицій: ${items.length}`);
+        return items;
+    }
+    parseForAgent38(result) {
+        console.log(`\n📊 [AGENT 38] Парсинг таблиці`);
+        const items = [];
+        if (!result.tables?.length) {
+            console.error('❌ Таблиці не знайдено');
+            return items;
+        }
+        const table = result.tables[0];
+        console.log(`📋 Знайдено таблицю: ${table.rowCount} рядків, ${table.columnCount} колонок`);
+        const rows = new Map();
+        for (const cell of table.cells) {
+            if (!rows.has(cell.rowIndex))
+                rows.set(cell.rowIndex, []);
+            rows.get(cell.rowIndex).push(cell);
+        }
+        for (let rowIdx = 1; rowIdx < table.rowCount; rowIdx++) {
+            const cells = rows.get(rowIdx);
+            if (!cells)
+                continue;
+            cells.sort((a, b) => a.columnIndex - b.columnIndex);
+            console.log(`\n🔍 Рядок ${rowIdx} (${cells.length} клітинок):`);
+            cells.forEach((cell, idx) => {
+                console.log(`  [${idx}] col=${cell.columnIndex}: "${cell.content?.trim()}"`);
+            });
+            const nameCell = cells.find(c => c.columnIndex === 2);
+            const qtyCell = cells.find(c => c.columnIndex === 3);
+            const priceCell = cells.find(c => c.columnIndex === 5);
+            let rawName = nameCell?.content?.trim() ?? '';
+            const rawQty = qtyCell?.content?.trim() ?? '';
+            const rawPrice = priceCell?.content?.trim() ?? '0';
+            console.log(`  📝 Назва: "${rawName}"`);
+            console.log(`  🔢 Кількість: "${rawQty}"`);
+            console.log(`  💰 Ціна: "${rawPrice}"`);
+            if (!rawName || rawName.length < 3) {
+                console.log(`  ⏭️ Пропуск: порожня/коротка назва`);
+                continue;
+            }
+            rawName = rawName
+                .replace(/\n+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (/^(назва|товар|тара|к-?ть|ціна|варт|разом|підсумок)/i.test(rawName)) {
+                console.log(`  ⏭️ Пропуск: заголовок або підсумок`);
+                continue;
+            }
+            const quantity = parseFloat(rawQty.replace(/,/g, '.').replace(/[^\d.]/g, '')) || 0;
+            console.log(`  ✓ Кількість: ${quantity}`);
+            if (quantity <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова кількість`);
+                continue;
+            }
+            const cleanPrice = rawPrice.replace(/\s+/g, '').replace(/,/g, '.');
+            const priceMatch = cleanPrice.match(/(\d+(?:\.\d{1,3})?)/);
+            const priceUAH = priceMatch ? parseFloat(priceMatch[1]) : 0;
+            if (priceUAH <= 0) {
+                console.log(`  ⏭️ Пропуск: нульова ціна`);
+                continue;
+            }
+            const purchasePriceCents = Math.round(priceUAH * 100);
+            const item = {
+                productName: rawName,
+                quantity: quantity,
+                purchasePrice: purchasePriceCents,
+                unitType: 'PIECE',
+            };
+            console.log(`  ✅ ДОДАНО:`, item);
+            items.push(item);
+        }
+        console.log(`\n✅ Всього розпізнано позицій: ${items.length}`);
         return items;
     }
 };
