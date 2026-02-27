@@ -42,6 +42,10 @@ const ProductsPage = () => {
 
     const hasMore = displayCount < filteredProducts.length;
 
+    console.log('filteredProducts', filteredProducts);
+    console.log('displayedProducts', displayedProducts)
+
+
     const handleScroll = useCallback(() => {
         if (!listRef.current || !hasMore) return;
 

@@ -16,18 +16,12 @@ const Invoice = ({ id }: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        console.log('id', id)
         if (!id) return;
         getInvoiceById(id);
-    }, [id, invoice]);
+    }, [id]);
 
-/* 
-    useEffect(() => {
-        if (containerRef.current && invoice) {
-            containerRef.current.scrollLeft = 0;
-        }
-    }, [invoice]); */
-    console.log('invoice', invoice)
+
+
 
     const sortedItems = useMemo(() => {
         if (!invoice) return [];
@@ -46,7 +40,7 @@ const Invoice = ({ id }: Props) => {
             },
             { purchase: 0, sales: 0 }
         );
-    }, [invoice]);
+    }, []);
 
     const handleItemChange = (
         itemId: number,

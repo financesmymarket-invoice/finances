@@ -40,6 +40,10 @@ export const useInvoiceStore = create<InvoiceState & InvoiceActions>((set, get) 
     uploadError: null,
 
     getInvoiceById: async (id) => {
+        const current = get().invoice;
+
+        if (Number(current?.id) === Number(id)) return;
+
         const invoice = await invoicesService.getInvoiceById(id);
 
         set({

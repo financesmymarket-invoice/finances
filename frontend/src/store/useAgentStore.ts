@@ -10,38 +10,51 @@ type AgentState = {
 };
 
 type AgentActions = {
-    getAgentById: (id: number) => Promise<void>;
+    getAgentById: (id: number) => Promise<IAgent | null>;
     getAgents: () => Promise<void>;
 };
 
 export const useAgentStore = create<AgentState & AgentActions>((set) => ({
     agent: null,
-    agents:[],
+    agents: [],
     loading: false,
     error: null,
 
-    getAgentById: async (id) => {
+    getAgentById: async (id: number): Promise<IAgent | null> => {
         set({ loading: true, error: null });
+
         try {
             const data = await agentsService.getAgentById(id);
             set({ agent: data });
-        } catch (err: any) {
-            set({ error: err.message || "Failed to fetch agent" });
+            return data;
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Failed to fetch agent";
+
+            set({ error: message, agent: null });
+            return null; // критично: повертаємо null, а не undefined
         } finally {
             set({ loading: false });
         }
     },
 
-    getAgents: async () => {
+    getAgents: async (): Promise<void> => {
         set({ loading: true, error: null });
+
         try {
             const data = await agentsService.getAgents();
             set({ agents: data });
-        } catch (err: any) {
-            set({ error: err.message || "Failed to fetch agent" });
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Failed to fetch agents";
+
+            set({ error: message });
         } finally {
             set({ loading: false });
         }
     },
 }));
-

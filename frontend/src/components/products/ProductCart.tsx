@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import type { IProduct } from "../../interfaces/IProduct";
 import { useAgentStore } from "../../store/useAgentStore";
 import styles from "./ProductCard.module.scss";
@@ -8,15 +7,13 @@ interface Props {
     product: IProduct;
 }
 
-const ProductCart = ({ product }: Props) => {
-    const { agent, getAgentById } = useAgentStore();
+const ProductCard = ({ product }: Props) => {
+    const agent = useAgentStore(
+        (state) => state.agents.find((a) => a.id === product.agentId) || null
+    );
 
-    useEffect(() => {
-        if (!product.agentId) return;
-        getAgentById(product.agentId);
-    }, [product.agentId, getAgentById]);
-
-   
+    const lastPrice =
+        product.priceMemory?.[product.priceMemory.length - 1]?.salePrice;
 
     return (
         <div className={styles.card}>
@@ -27,19 +24,16 @@ const ProductCart = ({ product }: Props) => {
             </p>
 
             <p>
-                <strong>price:</strong> {product.priceMemory && product.priceMemory.length > 0
-                    ? product.priceMemory[product.priceMemory.length - 1].salePrice/100
-                    : null}
+                <strong>price:</strong> {lastPrice ? lastPrice / 100 : "-"}
             </p>
-
 
             <p>
                 <strong>Агент:</strong> {agent?.name ?? "-"}
             </p>
+
             <Link to={`/product/${product.id}`}>Детальніше</Link>
         </div>
     );
 };
 
-export default ProductCart;
-
+export default ProductCard;
