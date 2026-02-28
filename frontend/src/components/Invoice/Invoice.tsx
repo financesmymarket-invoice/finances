@@ -18,13 +18,13 @@ const Invoice = ({ id }: Props) => {
     useEffect(() => {
         if (!id) return;
         getInvoiceById(id);
-    }, [id]);
+    }, [id, getInvoiceById]);
 
 
 
 
     const sortedItems = useMemo(() => {
-        if (!invoice) return [];
+        if (!invoice || !invoice.items) return [];
         return [...invoice.items].sort((a, b) => a.id - b.id);
     }, [invoice]);
 
@@ -40,7 +40,7 @@ const Invoice = ({ id }: Props) => {
             },
             { purchase: 0, sales: 0 }
         );
-    }, []);
+    }, [invoice]);
 
     const handleItemChange = (
         itemId: number,

@@ -37,5 +37,7 @@ export declare class AzureOcrService {
     private parseForAgent36;
     private parseForAgent37;
     private parseForAgent38;
+    private parseForAgent41;
+    private parseForAgent42;
 }
 export {};
